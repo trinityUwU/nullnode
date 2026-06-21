@@ -3,7 +3,7 @@ import sodium from 'libsodium-wrappers'
 import { ensureReady, deriveFingerprint } from '../crypto/identity'
 import { generateIdentity } from '../crypto/identity'
 import { loadJSON, saveJSON } from '../shared/local-store'
-import { callsign, encodeAddress } from './address'
+import { callsign, encodeAddress, handle } from './address'
 import type { Identity } from '../shared/types'
 
 interface StoredKeys {
@@ -30,19 +30,32 @@ export interface IdentityState {
   identity: Identity | null
   address: string
   callsign: string
+  pseudo: string
+  handle: string
+  setPseudo: (next: string) => void
 }
 
 /** Persistent network identity — the keypair IS your address, stable across sessions. */
 export function useIdentity(): IdentityState {
   const [identity, setIdentity] = useState<Identity | null>(null)
+  const [pseudo, setPseudoState] = useState<string>(() => loadJSON<string>('pseudo', ''))
 
   useEffect(() => {
     loadOrCreate().then(setIdentity).catch((err) => console.error('[identity] load failed', err))
   }, [])
 
+  const setPseudo = (next: string): void => {
+    setPseudoState(next)
+    saveJSON('pseudo', next)
+  }
+
+  const effectivePseudo = pseudo || (identity ? callsign(identity.publicKey) : '')
   return {
     identity,
     address: identity ? encodeAddress(identity.publicKey) : '',
     callsign: identity ? callsign(identity.publicKey) : '',
+    pseudo: effectivePseudo,
+    handle: identity ? handle(effectivePseudo, identity.publicKey) : '',
+    setPseudo,
   }
 }

@@ -5,14 +5,16 @@ import { deriveFingerprint } from '../crypto/identity'
 import { loadJSON, saveJSON } from '../shared/local-store'
 import type { Friend, Presence } from './types'
 
-function buildFriend(address: string, alias: string): Friend {
+function buildFriend(address: string, pseudo: string): Friend {
   const pub = decodeAddress(address)
+  const cs = callsign(pub)
   return {
     id: address.trim(),
     address: address.trim(),
     pub: sodium.to_base64(pub),
-    alias: alias.trim() || callsign(pub),
-    callsign: callsign(pub),
+    alias: pseudo.trim() || cs,
+    pseudo: pseudo.trim() || cs,
+    callsign: cs,
     fingerprint: deriveFingerprint(pub),
     verified: false,
     presence: 'unknown',
@@ -22,9 +24,9 @@ function buildFriend(address: string, alias: string): Friend {
 
 export interface RosterState {
   friends: Friend[]
-  addFriend: (address: string, alias: string) => { ok: boolean; error?: string }
+  addFriend: (address: string, pseudo: string) => { ok: boolean; error?: string }
   removeFriend: (id: string) => void
-  toggleVerified: (id: string) => void
+  hasFriend: (address: string) => boolean
   setPresence: (address: string, presence: Presence) => void
   resetPresence: () => void
 }
@@ -35,9 +37,9 @@ export function useRoster(selfId: string | null): RosterState {
 
   useEffect(() => { saveJSON('roster', friends) }, [friends])
 
-  const addFriend = useCallback((address: string, alias: string): { ok: boolean; error?: string } => {
+  const addFriend = useCallback((address: string, pseudo: string): { ok: boolean; error?: string } => {
     try {
-      const friend = buildFriend(address, alias)
+      const friend = buildFriend(address, pseudo)
       if (friend.id === selfId) return { ok: false, error: 'THAT IS YOUR OWN ADDRESS' }
       if (friends.some((f) => f.id === friend.id)) return { ok: false, error: 'ALREADY IN ROSTER' }
       setFriends((prev) => [...prev, friend])
@@ -51,9 +53,9 @@ export function useRoster(selfId: string | null): RosterState {
     setFriends((prev) => prev.filter((f) => f.id !== id))
   }, [])
 
-  const toggleVerified = useCallback((id: string): void => {
-    setFriends((prev) => prev.map((f) => (f.id === id ? { ...f, verified: !f.verified } : f)))
-  }, [])
+  const hasFriend = useCallback((address: string): boolean => {
+    return friends.some((f) => f.address === address.trim())
+  }, [friends])
 
   const setPresence = useCallback((address: string, presence: Presence): void => {
     setFriends((prev) => prev.map((f) => (f.address === address ? { ...f, presence } : f)))
@@ -63,5 +65,5 @@ export function useRoster(selfId: string | null): RosterState {
     setFriends((prev) => prev.map((f) => ({ ...f, presence: 'unknown' as Presence })))
   }, [])
 
-  return { friends, addFriend, removeFriend, toggleVerified, setPresence, resetPresence }
+  return { friends, addFriend, removeFriend, hasFriend, setPresence, resetPresence }
 }

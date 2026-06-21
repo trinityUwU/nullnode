@@ -4,13 +4,17 @@
 - [ ] Validation visuelle par Chris (le render motion se juge à l'œil)
 
 ## Réseau — rendez-vous
-- [x] Relai self-host aveugle (WebSocket) : présence + acheminement blob opaque
-- [x] Connexion ami-à-ami auto via le relai (bouton CALL, clé déjà connue)
+- [x] Relai self-host aveugle : présence + acheminement blob opaque
+- [x] Connexion ami-à-ami auto via le relai (icône 💬, clé déjà connue)
 - [x] Présence temps réel (online/offline) dans le roster
-- [ ] **Valider à la main le flux CALL complet (2 fenêtres)** ← prochaine action
-- [ ] Fallback dead-drop si relai down (UI : basculer vers ConnectPanel)
-- [ ] Statut `away` (inactivité) en plus de online/offline
-- [ ] SAS / vérification de fingerprint guidée pour le badge 🛡
+- [x] Identité : pseudo#discriminant (dérivé clé), pseudo éditable
+- [x] Friend requests consenties + store-and-forward (offline delivery)
+- [ ] **Valider à la main : 2 fenêtres → demande d'ami → accept → chat** ← prochaine action
+- [ ] Portabilité compte : seed phrase / export-import de clé (se connecter d'ailleurs)
+- [ ] Fallback dead-drop si relai down (UI)
+- [ ] TTL / purge des envelopes non-ackées (croissance non bornée du store, signalé par l'agent)
+- [ ] Statut `away` (inactivité)
+- [ ] SAS / vérification de fingerprint guidée (réintroduire le badge « verified »)
 - [ ] STUN optionnel pour le WAN (aujourd'hui LAN/localhost only)
 
 ## Sécurité — dette

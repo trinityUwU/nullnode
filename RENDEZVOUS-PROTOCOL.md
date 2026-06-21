@@ -47,6 +47,41 @@ avec sa keypair. Le relai ne voit que du ciphertext base64.
 3. **A** reçoit `signal` → ouvre → answer → `PeerLink.acceptAnswer(sdp)`.
 4. DataChannel ouvre → phase `secure`. Messagerie E2E déjà en place (ChaCha20-Poly1305).
 
+## Store-and-forward — messages applicatifs (friend requests, etc.)
+En plus du `signal` temps-réel (WebRTC, online-only), le relai achemine des **envelopes**
+applicatives **store-and-forward** : si le destinataire est offline, le relai les **stocke** et
+les **délivre à son retour** (au `hello`). Persistées sur disque pour survivre au restart.
+
+Messages ajoutés :
+```ts
+// CLIENT → RELAI
+{ t: 'relay', to: string, payload: string }   // envelope opaque store-and-forward
+{ t: 'ack', ids: string[] }                    // accuser réception d'envelopes délivrées
+
+// RELAI → CLIENT
+{ t: 'envelope', id: string, from: string, payload: string }  // livraison (immédiate ou différée)
+```
+Comportement relai :
+- À `{t:'relay', to, payload}` : générer un `id` (uuid court). Si `to` online → envoyer
+  `{t:'envelope', id, from, payload}` immédiatement ET le garder pending jusqu'à `ack`.
+  Si offline → stocker pending. Le `payload` reste **opaque** (jamais lu).
+- À `{t:'hello', addr}` : après `welcome`, **flush** toutes les envelopes pending de `addr`
+  (envoyer chaque `{t:'envelope', id, from, payload}`).
+- À `{t:'ack', ids}` : supprimer définitivement ces envelopes du store.
+- Store : `Map<address, Envelope[]>` + persistance JSON (`relay/data/envelopes.json`),
+  écrite de façon paresseuse (debounce). Le relai ne lit jamais `payload`.
+
+## Sémantique applicative de l'envelope payload (OPAQUE pour le relai)
+`crypto_box_seal` vers la clé du destinataire, contenant un de ces objets JSON :
+```ts
+{ kind: 'friend_request', pseudo: string, address: string }  // A demande à B
+{ kind: 'friend_accept',  pseudo: string, address: string }  // B accepte A
+{ kind: 'friend_decline', address: string }                  // B refuse A
+```
+`address` = l'adresse NULLNODE de l'émetteur (le destinataire l'ajoute à son roster sur accept).
+Côté client : module `src/rendezvous/social-envelope.ts` (seal/open de ces objets, réutilise
+`crypto_box_seal` comme `sealed-signal.ts`). Le hook social gère l'état des requêtes + réciprocité.
+
 ## Limite connue (à documenter, pas à masquer)
 Le relai aveugle voit le **graphe social** (qui signale qui) et la **présence** — métadonnées.
 Acceptable pour un relai self-hosted que tu possèdes ; à noter dans la doc sécurité.

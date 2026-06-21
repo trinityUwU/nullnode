@@ -4,6 +4,19 @@
 App desktop de communication P2P chiffrée E2E, esthétique « station de contrôle » (réf. terminal-industries.com).
 Priorité design. Souverain : aucun serveur de signaling, aucun relais. Échange via dead-drop SDP.
 
+## Modèle identité (décidé 2026-06-21) — PAS de blockchain
+L'unicité vient de la **clé publique** (unique par construction crypto), pas d'un consensus global.
+Une blockchain/gossip pour « ce compte existe-t-il ? » résout un problème qu'on n'a pas. Acté :
+- **Clé = compte**. Adresse NULLNODE = la clé. Aucun annuaire, aucun serveur d'unicité.
+- **Handle = PSEUDO#discriminant** : pseudo lisible (éditable) + 6 chiffres dérivés de la clé
+  (distingue les homonymes, lié cryptographiquement à la clé). `src/identity/address.ts`.
+- **Portabilité** (TODO) : seed phrase / export de clé pour se reconnecter ailleurs.
+
+## Demandes d'amis (décidé 2026-06-21) — consentement + store-and-forward
+Fini l'ajout unilatéral local. Modèle relation mutuelle consentie :
+A envoie une **friend_request** scellée → B reçoit/accepte/refuse → ajout réciproque sur accept.
+Asynchrone via le relai **store-and-forward** : si B offline, le relai stocke et délivre au retour.
+
 ## Modèle réseau (décidé 2026-06-21)
 « Nouveau réseau » P2P souverain. Rendez-vous choisi : **relai self-host aveugle + fallback dead-drop**
 (le relai ne voit que clés publiques + blobs chiffrés, jamais les messages). Briques :
@@ -25,6 +38,14 @@ Priorité design. Souverain : aucun serveur de signaling, aucun relais. Échange
   tiers bloqué) + RendezvousClient (WS, heartbeat, reconnexion) + `useRendezvous` (présence,
   connexion auto ami-à-ami via bouton CALL).
 - ✅ Panneau réseau : statut RELAY UP/DOWN, présence temps réel, bouton CALL par ami online.
+
+## Ajouts 2026-06-21 (session friend-requests)
+- ✅ Identité : pseudo éditable + handle PSEUDO#disc (discriminant dérivé clé), persistés
+- ✅ Friend requests : envoi (SEND), réception (PENDING REQUESTS), accept (réciproque) / decline
+- ✅ Store-and-forward relai (`relay/src/envelope-store.ts`, persistance JSON debouncée)
+- ✅ Client : `social-envelope.ts` (seal/open) + canal relay/ack/envelope dans RendezvousClient
+- ✅ UX : CALL → icône 💬 chat ; bouclier « verified » retiré (réintro plus tard, guidé)
+- ✅ Validé E2E : friend-request offline (store→flush→ack) ET online (delivery directe)
 
 ## Lancer le réseau complet
 1. Relai : `cd relay && ./start.sh` (ws://127.0.0.1:8791). **Note : 8787 squatté sur la machine → défaut 8791.**

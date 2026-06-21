@@ -5,6 +5,7 @@ export interface RendezvousHandlers {
   onOpen(online: string[]): void
   onPresence(addr: string, state: 'online' | 'offline'): void
   onSignal(from: string, payload: string): void
+  onEnvelope(id: string, from: string, payload: string): void
   onClose(): void
 }
 
@@ -19,6 +20,7 @@ interface IncomingMessage {
   state?: 'online' | 'offline'
   from?: string
   payload?: string
+  id?: string
   code?: string
 }
 
@@ -54,6 +56,16 @@ export class RendezvousClient {
   /** Achemine un blob opaque vers `to` si le socket est ouvert. */
   signal(to: string, payload: string): void {
     this.sendRaw({ t: 'signal', to, payload })
+  }
+
+  /** Envoie une enveloppe applicative store-and-forward (délivrée même si offline). */
+  relay(to: string, payload: string): void {
+    this.sendRaw({ t: 'relay', to, payload })
+  }
+
+  /** Accuse réception d'envelopes délivrées (le relai les supprime). */
+  ack(ids: string[]): void {
+    if (ids.length) this.sendRaw({ t: 'ack', ids })
   }
 
   /** Ferme proprement : stoppe heartbeat + reconnexion, ferme le socket. */
@@ -93,6 +105,9 @@ export class RendezvousClient {
         return
       case 'signal':
         if (msg.from && msg.payload) this.handlers.onSignal(msg.from, msg.payload)
+        return
+      case 'envelope':
+        if (msg.id && msg.from && msg.payload) this.handlers.onEnvelope(msg.id, msg.from, msg.payload)
         return
       case 'pong':
         return

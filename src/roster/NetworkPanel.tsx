@@ -2,19 +2,25 @@ import { motion } from 'framer-motion'
 import { IdentityCard } from '../identity/IdentityCard'
 import { AddFriend } from './AddFriend'
 import { FriendsList } from './FriendsList'
+import { FriendRequests } from './FriendRequests'
 import type { IdentityState } from '../identity/use-identity'
 import type { RosterState } from './use-roster'
-import type { Friend } from './types'
+import type { Friend, FriendRequest } from './types'
 
 interface Props {
   identity: IdentityState
   roster: RosterState
   relayOnline: boolean
-  onConnect: (friend: Friend) => void
+  requests: FriendRequest[]
+  onChat: (friend: Friend) => void
+  onSendRequest: (address: string) => { ok: boolean; error?: string }
+  onAccept: (req: FriendRequest) => void
+  onDecline: (req: FriendRequest) => void
 }
 
-/** Left console: who you are + your network of peers. */
-export function NetworkPanel({ identity, roster, relayOnline, onConnect }: Props): React.ReactElement {
+/** Left console: identity + friend requests + roster. */
+export function NetworkPanel(props: Props): React.ReactElement {
+  const { identity, roster, relayOnline, requests, onChat, onSendRequest, onAccept, onDecline } = props
   return (
     <motion.aside
       initial={{ opacity: 0, x: -24 }}
@@ -34,8 +40,9 @@ export function NetworkPanel({ identity, roster, relayOnline, onConnect }: Props
         </span>
       </header>
       <IdentityCard identity={identity} />
-      <AddFriend roster={roster} />
-      <FriendsList roster={roster} onConnect={onConnect} />
+      <FriendRequests requests={requests} onAccept={onAccept} onDecline={onDecline} />
+      <AddFriend onSend={onSendRequest} />
+      <FriendsList roster={roster} onChat={onChat} />
     </motion.aside>
   )
 }

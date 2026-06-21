@@ -5,9 +5,17 @@ export interface Friend {
   address: string
   pub: string
   alias: string
+  pseudo: string
   callsign: string
   fingerprint: string
   verified: boolean
   presence: Presence
   addedAt: number
+}
+
+export interface FriendRequest {
+  id: string
+  address: string
+  pseudo: string
+  at: number
 }

@@ -15,7 +15,9 @@ export function App(): React.ReactElement {
   const identity = useIdentity()
   const roster = useRoster(identity.address || null)
   const session = useSecureSession(identity.identity)
-  const rendezvous = useRendezvous({ identity: identity.identity, address: identity.address, session, roster })
+  const rendezvous = useRendezvous({
+    identity: identity.identity, address: identity.address, pseudo: identity.pseudo, session, roster,
+  })
 
   return (
     <main className="relative h-full w-full overflow-hidden">
@@ -35,7 +37,11 @@ export function App(): React.ReactElement {
           identity={identity}
           roster={roster}
           relayOnline={rendezvous.relayOnline}
-          onConnect={(f) => void rendezvous.connectTo(f)}
+          requests={rendezvous.incoming}
+          onChat={(f) => void rendezvous.connectTo(f)}
+          onSendRequest={rendezvous.sendRequest}
+          onAccept={rendezvous.acceptRequest}
+          onDecline={rendezvous.declineRequest}
         />
         <CommsConsole session={session} />
       </div>

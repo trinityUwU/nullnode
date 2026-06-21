@@ -33,3 +33,16 @@ export function callsign(publicKey: Uint8Array): string {
   const hash = sodium.crypto_generichash(6, publicKey)
   return [0, 2, 4].map((i) => WORDS[hash[i] % WORDS.length]).join('-')
 }
+
+/** Derive a stable 6-digit discriminator from a public key — distinguishes homonyms. */
+export function discriminator(publicKey: Uint8Array): string {
+  const hash = sodium.crypto_generichash(4, publicKey)
+  const num = ((hash[0] << 24) | (hash[1] << 16) | (hash[2] << 8) | hash[3]) >>> 0
+  return String(num % 1_000_000).padStart(6, '0')
+}
+
+/** Full display handle: PSEUDO#123456. The discriminator is bound to the key. */
+export function handle(pseudo: string, publicKey: Uint8Array): string {
+  const clean = pseudo.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 16) || 'OPERATOR'
+  return `${clean}#${discriminator(publicKey)}`
+}

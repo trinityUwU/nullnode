@@ -15,7 +15,23 @@ export interface PingMessage {
   t: "ping";
 }
 
-export type ClientMessage = HelloMessage | SignalInMessage | PingMessage;
+export interface RelayInMessage {
+  t: "relay";
+  to: string;
+  payload: string;
+}
+
+export interface AckMessage {
+  t: "ack";
+  ids: string[];
+}
+
+export type ClientMessage =
+  | HelloMessage
+  | SignalInMessage
+  | PingMessage
+  | RelayInMessage
+  | AckMessage;
 
 export interface WelcomeMessage {
   t: "welcome";
@@ -38,6 +54,13 @@ export interface PongMessage {
   t: "pong";
 }
 
+export interface EnvelopeOutMessage {
+  t: "envelope";
+  id: string;
+  from: string;
+  payload: string;
+}
+
 export interface ErrorMessage {
   t: "error";
   code: string;
@@ -47,6 +70,7 @@ export type ServerMessage =
   | WelcomeMessage
   | PresenceMessage
   | SignalOutMessage
+  | EnvelopeOutMessage
   | PongMessage
   | ErrorMessage;
 
@@ -63,5 +87,15 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   if (raw.t === "signal" && typeof raw.to === "string" && typeof raw.payload === "string") {
     return { t: "signal", to: raw.to, payload: raw.payload };
   }
+  if (raw.t === "relay" && typeof raw.to === "string" && typeof raw.payload === "string") {
+    return { t: "relay", to: raw.to, payload: raw.payload };
+  }
+  if (raw.t === "ack" && isStringArray(raw.ids)) {
+    return { t: "ack", ids: raw.ids };
+  }
   return null;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
