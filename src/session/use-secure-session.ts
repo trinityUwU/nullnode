@@ -4,6 +4,8 @@ import { PeerLink } from '../transport/peer-link'
 import { decodeDrop, encodeDrop } from '../transport/dead-drop'
 import type { ConnectionPhase, Identity, SecureMessage } from '../shared/types'
 
+type Sdp = RTCSessionDescriptionInit
+
 function newId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
@@ -16,6 +18,9 @@ export interface SecureSession {
   hostSession: () => Promise<void>
   joinSession: (offerCode: string) => Promise<void>
   completeSession: (answerCode: string) => Promise<void>
+  beginOffer: (peerPub: Uint8Array) => Promise<Sdp>
+  respondToOffer: (peerPub: Uint8Array, offer: Sdp) => Promise<Sdp>
+  applyAnswer: (answer: Sdp) => Promise<void>
   sendMessage: (body: string) => void
 }
 
@@ -78,6 +83,25 @@ export function useSecureSession(identity: Identity | null): SecureSession {
     await linkRef.current!.acceptAnswer(drop.sdp)
   }, [])
 
+  // Rendezvous primitives — both peers already know each other's key (from the roster).
+  const beginOffer = useCallback(async (peerPub: Uint8Array): Promise<Sdp> => {
+    setPhase('handshaking')
+    keysRef.current = await deriveSession(identityRef.current!, peerPub, true)
+    setPeerFingerprint(keysRef.current.peerFingerprint)
+    return link().createOffer()
+  }, [link])
+
+  const respondToOffer = useCallback(async (peerPub: Uint8Array, offer: Sdp): Promise<Sdp> => {
+    setPhase('handshaking')
+    keysRef.current = await deriveSession(identityRef.current!, peerPub, false)
+    setPeerFingerprint(keysRef.current.peerFingerprint)
+    return link().acceptOffer(offer)
+  }, [link])
+
+  const applyAnswer = useCallback(async (answer: Sdp): Promise<void> => {
+    await linkRef.current?.acceptAnswer(answer)
+  }, [])
+
   const sendMessage = useCallback((body: string): void => {
     if (!keysRef.current || !body.trim()) return
     const { payload, tag } = seal(keysRef.current, body)
@@ -89,6 +113,7 @@ export function useSecureSession(identity: Identity | null): SecureSession {
 
   return {
     phase, messages, localDrop, peerFingerprint,
-    hostSession, joinSession, completeSession, sendMessage,
+    hostSession, joinSession, completeSession,
+    beginOffer, respondToOffer, applyAnswer, sendMessage,
   }
 }

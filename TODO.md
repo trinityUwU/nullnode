@@ -3,12 +3,15 @@
 ## En cours
 - [ ] Validation visuelle par Chris (le render motion se juge à l'œil)
 
-## Réseau — prochaine étape (rendez-vous)
-- [ ] Relai self-host aveugle (WebSocket) : présence + échange SDP chiffré vers destinataire
-- [ ] Connexion ami-à-ami auto via le relai (clé déjà connue → skip saisie, juste SDP)
-- [ ] Fallback dead-drop si relai down
-- [ ] Présence temps réel (online/away/offline) dans le roster
+## Réseau — rendez-vous
+- [x] Relai self-host aveugle (WebSocket) : présence + acheminement blob opaque
+- [x] Connexion ami-à-ami auto via le relai (bouton CALL, clé déjà connue)
+- [x] Présence temps réel (online/offline) dans le roster
+- [ ] **Valider à la main le flux CALL complet (2 fenêtres)** ← prochaine action
+- [ ] Fallback dead-drop si relai down (UI : basculer vers ConnectPanel)
+- [ ] Statut `away` (inactivité) en plus de online/offline
 - [ ] SAS / vérification de fingerprint guidée pour le badge 🛡
+- [ ] STUN optionnel pour le WAN (aujourd'hui LAN/localhost only)
 
 ## Sécurité — dette
 - [ ] Chiffrer l'identité au repos (passphrase → crypto_pwhash), aujourd'hui stockée en clair local

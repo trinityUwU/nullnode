@@ -1,4 +1,4 @@
-import type { Presence } from './types'
+import type { Friend, Presence } from './types'
 import type { RosterState } from './use-roster'
 
 const PRESENCE_COLOR: Record<Presence, string> = {
@@ -8,8 +8,13 @@ const PRESENCE_COLOR: Record<Presence, string> = {
   unknown: 'var(--text-lo)',
 }
 
-/** Roster list — each friend with presence, trust badge, verify + remove controls. */
-export function FriendsList({ roster }: { roster: RosterState }): React.ReactElement {
+interface Props {
+  roster: RosterState
+  onConnect: (friend: Friend) => void
+}
+
+/** Roster list — each friend with presence, trust badge, connect + verify + remove controls. */
+export function FriendsList({ roster, onConnect }: Props): React.ReactElement {
   if (roster.friends.length === 0) {
     return <span className="text-[10px]" style={{ color: 'var(--text-lo)' }}>no peers in roster — add one above.</span>
   }
@@ -25,6 +30,13 @@ export function FriendsList({ roster }: { roster: RosterState }): React.ReactEle
             <span className="truncate text-[12px]" style={{ color: 'var(--text-hi)' }}>{f.alias}</span>
             <span className="text-[9px]" style={{ color: 'var(--text-lo)' }}>{f.callsign} · {f.presence}</span>
           </div>
+          <button
+            onClick={() => onConnect(f)}
+            disabled={f.presence !== 'online'}
+            title={f.presence === 'online' ? 'establish secure channel' : 'peer offline'}
+            className="text-[10px] tracking-[0.1em] transition-opacity disabled:opacity-30"
+            style={{ color: 'var(--accent)' }}
+          >CALL ▸</button>
           <button
             onClick={() => roster.toggleVerified(f.id)}
             title={f.verified ? 'verified' : 'mark verified (compare fingerprints)'}

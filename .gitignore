@@ -3,3 +3,8 @@ dist
 logs
 *.pid
 .env
+
+# relay
+relay/node_modules
+relay/logs
+relay/*.pid

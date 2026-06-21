@@ -3,7 +3,7 @@ import sodium from 'libsodium-wrappers'
 import { decodeAddress, callsign } from '../identity/address'
 import { deriveFingerprint } from '../crypto/identity'
 import { loadJSON, saveJSON } from '../shared/local-store'
-import type { Friend } from './types'
+import type { Friend, Presence } from './types'
 
 function buildFriend(address: string, alias: string): Friend {
   const pub = decodeAddress(address)
@@ -25,6 +25,8 @@ export interface RosterState {
   addFriend: (address: string, alias: string) => { ok: boolean; error?: string }
   removeFriend: (id: string) => void
   toggleVerified: (id: string) => void
+  setPresence: (address: string, presence: Presence) => void
+  resetPresence: () => void
 }
 
 /** Local friends roster. No central directory — keys are stored and trusted locally. */
@@ -53,5 +55,13 @@ export function useRoster(selfId: string | null): RosterState {
     setFriends((prev) => prev.map((f) => (f.id === id ? { ...f, verified: !f.verified } : f)))
   }, [])
 
-  return { friends, addFriend, removeFriend, toggleVerified }
+  const setPresence = useCallback((address: string, presence: Presence): void => {
+    setFriends((prev) => prev.map((f) => (f.address === address ? { ...f, presence } : f)))
+  }, [])
+
+  const resetPresence = useCallback((): void => {
+    setFriends((prev) => prev.map((f) => ({ ...f, presence: 'unknown' as Presence })))
+  }, [])
+
+  return { friends, addFriend, removeFriend, toggleVerified, setPresence, resetPresence }
 }

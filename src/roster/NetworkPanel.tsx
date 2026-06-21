@@ -4,14 +4,17 @@ import { AddFriend } from './AddFriend'
 import { FriendsList } from './FriendsList'
 import type { IdentityState } from '../identity/use-identity'
 import type { RosterState } from './use-roster'
+import type { Friend } from './types'
 
 interface Props {
   identity: IdentityState
   roster: RosterState
+  relayOnline: boolean
+  onConnect: (friend: Friend) => void
 }
 
 /** Left console: who you are + your network of peers. */
-export function NetworkPanel({ identity, roster }: Props): React.ReactElement {
+export function NetworkPanel({ identity, roster, relayOnline, onConnect }: Props): React.ReactElement {
   return (
     <motion.aside
       initial={{ opacity: 0, x: -24 }}
@@ -22,11 +25,17 @@ export function NetworkPanel({ identity, roster }: Props): React.ReactElement {
     >
       <header className="flex items-center justify-between">
         <span className="text-[11px] tracking-[0.3em]" style={{ color: 'var(--text-mid)' }}>// NETWORK</span>
-        <span className="text-[10px]" style={{ color: 'var(--text-lo)' }}>{roster.friends.length} PEERS</span>
+        <span className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--text-lo)' }}>
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: relayOnline ? 'var(--accent)' : 'var(--danger)', boxShadow: relayOnline ? '0 0 8px var(--accent-glow)' : 'none' }}
+          />
+          {relayOnline ? 'RELAY UP' : 'RELAY DOWN'}
+        </span>
       </header>
       <IdentityCard identity={identity} />
       <AddFriend roster={roster} />
-      <FriendsList roster={roster} />
+      <FriendsList roster={roster} onConnect={onConnect} />
     </motion.aside>
   )
 }

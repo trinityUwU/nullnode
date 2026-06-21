@@ -14,12 +14,31 @@ Priorité design. Souverain : aucun serveur de signaling, aucun relais. Échange
 - Présence + reconnect auto = à brancher avec le relai (prochaine étape).
 
 ## État actuel (2026-06-21)
-**v1 vitrine + socle réseau — livré.**
+**v1 vitrine + socle réseau + rendez-vous — livré.**
 - ✅ Scène WebGL refondue : data-sphere à shader (fresnel + flux noise, rendu « liquide »),
   3 couches de particules, connexions courbes + paquets animés, bloom/aberration/vignette/grain
 - ✅ Identité persistante + adresse NULLNODE + callsign (`identity/`)
-- ✅ Roster d'amis local : add (coller adresse) / list / verify / remove, persistant (`roster/`)
-- ✅ Panneau réseau gauche (identité + amis), console dead-drop/messages droite
+- ✅ Roster d'amis local : add / list / verify / remove + présence, persistant (`roster/`)
+- ✅ **Relai de rendez-vous aveugle** (`relay/`, Bun WS, port 8791) : présence + acheminement
+  de blobs opaques (`crypto_box_seal`). Validé E2E (2 clients, routing + PEER_OFFLINE).
+- ✅ **Client rendez-vous** (`src/rendezvous/`) : sealed-signal (validé E2E : confidentialité +
+  tiers bloqué) + RendezvousClient (WS, heartbeat, reconnexion) + `useRendezvous` (présence,
+  connexion auto ami-à-ami via bouton CALL).
+- ✅ Panneau réseau : statut RELAY UP/DOWN, présence temps réel, bouton CALL par ami online.
+
+## Lancer le réseau complet
+1. Relai : `cd relay && ./start.sh` (ws://127.0.0.1:8791). **Note : 8787 squatté sur la machine → défaut 8791.**
+2. App : `./start.sh` (5180). Override possible via `VITE_RELAY_URL`.
+
+## Validé E2E (par le parent)
+- Relai : registre, welcome, signal routing (from correct, payload opaque intact), PEER_OFFLINE.
+- Sealed-signal : round-trip offer, payload ≠ plaintext, tiers ne peut pas déchiffrer.
+- UI : RELAY UP affiché, identité persistée, zéro erreur console.
+
+## NON validé automatiquement (à tester à la main)
+Flux **CALL complet ami-à-ami** (offer→answer→DataChannel→secure) : nécessite 2 fenêtres
+navigateur avec 2 identités distinctes, qui s'ajoutent mutuellement, puis CALL. WebRTC DataChannel
+ne se teste pas headless. Sans STUN → LAN/localhost uniquement (WAN = TODO).
 
 - ✅ Stack : Vite + React + TS + Tailwind v4 + r3f/drei/postprocessing + GSAP/Framer Motion + libsodium
 - ✅ Scène WebGL réseau (core wireframe, nodes pulsants, tunnels, bloom phosphore), phase-aware
