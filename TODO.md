@@ -24,24 +24,21 @@ active à la fois). Relai sur :8791 (8787 squatté). Dev app :5180.
 
 ---
 
-## P1 — BACKUP DONNÉES ZERO-KNOWLEDGE (décidé, prochain gros morceau)
+## P1 — BACKUP DONNÉES ZERO-KNOWLEDGE — ✅ CORE LIVRÉ (2026-06-21)
 Objectif : retrouver roster + historique sur un nouvel appareil via la seed, sans que le
 relai puisse lire quoi que ce soit. Couvre le cas « seul connecté → nouvel appareil 3j après ».
 
-- [ ] **Crypto backup** (`src/backup/backup-crypto.ts`, sous-agent) : dériver une clé symétrique
-      depuis la seed (libsodium `crypto_pwhash` ou `crypto_kdf` depuis la seed BIP39), chiffrer
-      un blob `{ roster, history, seen, pseudo }` (XChaCha20-Poly1305 `crypto_secretbox`).
-      `sealBackup(state, seed)` / `openBackup(blob, seed)`. Tests de round-trip via tsc seulement.
-- [ ] **Endpoint relai backup** (`relay/`, sous-agent) : ajouter au protocole WS
-      `{t:'backup_put', blob}` (stocke le blob opaque sous l'adresse) et `{t:'backup_get'}` →
-      `{t:'backup', blob|null}`. Persistance JSON `relay/data/backups.json` (1 blob/adresse,
-      écrase). Le relai ne lit jamais le blob. Mettre à jour `RENDEZVOUS-PROTOCOL.md`.
-- [ ] **Client backup** (`src/backup/use-backup.ts` + UI, parent ou sous-agent) : push debouncé
-      du blob à chaque changement roster/history ; au login, pull + merge dans localStorage.
-      Bouton « EXPORT FILE » (download blob chiffré) + « IMPORT FILE » comme filet souverain.
-- [ ] **Roster/history par-compte** : aujourd'hui localStorage global. À l'import d'une autre
-      seed, charger le roster/history de CE compte (préfixer les clés localStorage par l'adresse,
-      ou recharger depuis le backup). Dette actuelle bloquante pour le multi-compte.
+- [x] **Crypto backup** (`src/backup/backup-crypto.ts`) : clé dérivée seed BIP39
+      (`crypto_generichash` salé `nullnode-backup-v1`), `crypto_secretbox_easy`. seal/open.
+- [x] **Endpoint relai backup** (`relay/src/backup-store.ts` + protocol/server) :
+      `backup_put`/`backup_get`/`backup`, JSON `relay/data/backups.json` (1 blob/adresse). Opaque.
+- [x] **Client backup** (`backup-sync.ts` + câblage `useRendezvous` + `BackupPanel`) : pull au
+      login (merge convergent → reload si neuf), push debouncé 2s, EXPORT/IMPORT FILE (.ncb).
+- [ ] **À VALIDER MAIN (P0)** : noter seed → autre navigateur → RESTORE seed → données récupérées.
+- [ ] **Roster/history par-compte** (RESTE — dette multi-compte) : aujourd'hui localStorage global.
+      À l'import d'une AUTRE seed dans le même navigateur, charger le roster/history de CE compte
+      (préfixer les clés localStorage par l'adresse). Pas requis pour le mono-compte/nouvel appareil
+      (déjà couvert), mais bloquant pour plusieurs comptes sur le même navigateur.
 
 ## P1 — MESSAGES ASYNCHRONES (recevoir pendant absence)
 - [ ] Router les messages chiffrés via le **store-and-forward existant** (envelope kind:'dm')

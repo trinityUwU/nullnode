@@ -6,6 +6,7 @@ export interface RendezvousHandlers {
   onPresence(addr: string, state: 'online' | 'offline'): void
   onSignal(from: string, payload: string): void
   onEnvelope(id: string, from: string, payload: string): void
+  onBackup(blob: string | null): void
   onClose(): void
 }
 
@@ -21,6 +22,7 @@ interface IncomingMessage {
   from?: string
   payload?: string
   id?: string
+  blob?: string | null
   code?: string
 }
 
@@ -68,6 +70,16 @@ export class RendezvousClient {
     if (ids.length) this.sendRaw({ t: 'ack', ids })
   }
 
+  /** Pousse le blob de backup chiffré (opaque pour le relai), écrase le précédent. */
+  backupPut(blob: string): void {
+    this.sendRaw({ t: 'backup_put', blob })
+  }
+
+  /** Demande le blob de backup stocké sous notre adresse. */
+  backupGet(): void {
+    this.sendRaw({ t: 'backup_get' })
+  }
+
   /** Ferme proprement : stoppe heartbeat + reconnexion, ferme le socket. */
   close(): void {
     this.closing = true
@@ -109,6 +121,8 @@ export class RendezvousClient {
       case 'envelope':
         if (msg.id && msg.from && msg.payload) this.handlers.onEnvelope(msg.id, msg.from, msg.payload)
         return
+      case 'backup':
+        return this.handlers.onBackup(msg.blob ?? null)
       case 'pong':
         return
       case 'error':

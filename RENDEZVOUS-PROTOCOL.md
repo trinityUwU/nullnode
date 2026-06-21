@@ -82,6 +82,31 @@ Comportement relai :
 Côté client : module `src/rendezvous/social-envelope.ts` (seal/open de ces objets, réutilise
 `crypto_box_seal` comme `sealed-signal.ts`). Le hook social gère l'état des requêtes + réciprocité.
 
+## Backup zero-knowledge (chiffré, opaque pour le relai)
+Le relai stocke **un blob chiffré par adresse** (roster + historique + seen + pseudo), pour
+récupérer ses données sur un nouvel appareil via la seed. Le relai ne lit **jamais** le blob.
+
+Clé de chiffrement = dérivée de la **seed BIP39**, indépendante de la keypair X25519 :
+`crypto_generichash(crypto_secretbox_KEYBYTES, mnemonicToSeedSync(mnemonic), DOMAIN)`
+avec `DOMAIN = 'nullnode-backup-v1'` (sel de domaine, séparation des usages). Chiffrement
+`crypto_secretbox_easy` (nonce aléatoire 24o préfixé au ciphertext, le tout base64).
+
+Messages ajoutés :
+```ts
+// CLIENT → RELAI
+{ t: 'backup_put', blob: string }   // remplace le blob stocké sous l'adresse de l'expéditeur
+{ t: 'backup_get' }                 // demande le blob de l'adresse de l'expéditeur
+
+// RELAI → CLIENT
+{ t: 'backup', blob: string | null }  // blob courant (ou null si aucun)
+```
+Comportement relai :
+- `{t:'backup_put', blob}` : exige un socket enregistré (`hello` préalable). Écrase le blob
+  sous `ws.data.addr`. Persistance JSON `relay/data/backups.json` (`Map<address, string>`,
+  debounce identique à `envelope-store.ts`). `blob` reste **opaque**.
+- `{t:'backup_get'}` : exige enregistré. Répond `{t:'backup', blob}` (ou `null`).
+- Un seul blob par adresse (le dernier écrase). Pas de versioning, pas de TTL.
+
 ## Limite connue (à documenter, pas à masquer)
 Le relai aveugle voit le **graphe social** (qui signale qui) et la **présence** — métadonnées.
 Acceptable pour un relai self-hosted que tu possèdes ; à noter dans la doc sécurité.

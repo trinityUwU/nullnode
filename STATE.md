@@ -50,11 +50,24 @@ Asynchrone via le relai **store-and-forward** : si B offline, le relai stocke et
   connexion auto ami-à-ami via bouton CALL).
 - ✅ Panneau réseau : statut RELAY UP/DOWN, présence temps réel, bouton CALL par ami online.
 
-## ▶ REPRISE (post-compaction) — lire en premier
-Prochaine action = **valider à la main le flux 2 fenêtres** (P0 dans TODO.md), puis attaquer
-**P1 backup zero-knowledge** via sous-agents. Tout le backlog déléguable est dans `TODO.md`
-(structuré P0→P3, chaque tâche autonome avec fichiers + contrat). Relancer relai :
-`cd relay && ./start.sh` (:8791). App : `./start.sh` (:5180). Mono-session WebRTC actuelle.
+## ▶ REPRISE — lire en premier
+**P1 backup zero-knowledge core = LIVRÉ + validé runtime** (cycle pull/push prouvé, blobs
+opaques sur disque, zéro erreur console). Reste à valider à la main la **vraie récupération
+nouvel appareil** (noter seed → autre navigateur → RESTORE seed → backupGet → merge) — P0.
+Prochains morceaux : **per-account prefixing** (dette multi-compte), **messages async**,
+**multi-conversation**. Backlog complet dans `TODO.md`. Relai : `cd relay && ./start.sh`
+(:8791). App : `./start.sh` (:5180). Mono-session WebRTC actuelle.
+
+## Backup zero-knowledge (2026-06-21) — LIVRÉ
+- ✅ `src/backup/backup-crypto.ts` : `sealBackup`/`openBackup`, clé dérivée de la seed BIP39
+  (`crypto_generichash` salé `nullnode-backup-v1`), chiffrement `crypto_secretbox_easy`.
+- ✅ `src/backup/backup-sync.ts` : collecte + merge convergent (union roster/history/seen, pseudo
+  si vide) sur localStorage. Non destructif.
+- ✅ Relai : `relay/src/backup-store.ts` (1 blob opaque/adresse, JSON `data/backups.json`) +
+  messages `backup_put`/`backup_get`/`backup`. Le relai ne lit jamais le blob.
+- ✅ Câblage `useRendezvous` : pull `backupGet` au login (merge→reload si neuf), push debouncé 2s
+  sur changement roster/history/pseudo. UI `BackupPanel` : EXPORT/IMPORT FILE (.ncb) souverain.
+- Validé runtime : backup_get→backup_put dans les logs relai, backups.json = ciphertext, 0 erreur.
 
 ## Ajouts 2026-06-21 (messagerie)
 - ✅ Historique persistant par pair (`session/history.ts`) — survit au refresh

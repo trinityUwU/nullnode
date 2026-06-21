@@ -5,17 +5,20 @@ import signale from "signale";
 import type { ServerWebSocket } from "bun";
 import { Registry, type SocketData } from "./registry";
 import { EnvelopeStore } from "./envelope-store";
+import { BackupStore } from "./backup-store";
 import {
   parseClientMessage,
   type HelloMessage,
   type SignalInMessage,
   type RelayInMessage,
   type AckMessage,
+  type BackupPutMessage,
 } from "./protocol";
 
 const PORT = Number(process.env.RELAY_PORT ?? 8791);
 const registry = new Registry();
 const envelopes = new EnvelopeStore();
+const backups = new BackupStore();
 
 type Socket = ServerWebSocket<SocketData>;
 
@@ -60,6 +63,26 @@ function handleAck(ws: Socket, msg: AckMessage): void {
   signale.info(`ack ${addr} [${msg.ids.length}]`);
 }
 
+function handleBackupPut(ws: Socket, msg: BackupPutMessage): void {
+  const addr = ws.data.addr;
+  if (!addr) {
+    ws.send(JSON.stringify({ t: "error", code: "NOT_REGISTERED" }));
+    return;
+  }
+  backups.put(addr, msg.blob);
+  signale.info(`backup_put ${addr}`);
+}
+
+function handleBackupGet(ws: Socket): void {
+  const addr = ws.data.addr;
+  if (!addr) {
+    ws.send(JSON.stringify({ t: "error", code: "NOT_REGISTERED" }));
+    return;
+  }
+  ws.send(JSON.stringify({ t: "backup", blob: backups.get(addr) }));
+  signale.info(`backup_get ${addr}`);
+}
+
 function handleSignal(ws: Socket, msg: SignalInMessage): void {
   const from = ws.data.addr;
   if (!from) {
@@ -87,6 +110,8 @@ function routeMessage(ws: Socket, raw: string | Buffer): void {
     else if (msg.t === "signal") handleSignal(ws, msg);
     else if (msg.t === "relay") handleRelay(ws, msg);
     else if (msg.t === "ack") handleAck(ws, msg);
+    else if (msg.t === "backup_put") handleBackupPut(ws, msg);
+    else if (msg.t === "backup_get") handleBackupGet(ws);
     else if (msg.t === "ping") ws.send(JSON.stringify({ t: "pong" }));
   } catch (err) {
     signale.error("parse/route failed:", err);
@@ -108,6 +133,7 @@ function handleClose(ws: Socket): void {
 }
 
 await envelopes.load();
+await backups.load();
 
 const server = Bun.serve<SocketData>({
   port: PORT,

@@ -3,6 +3,8 @@ import { decodeAddress } from '../identity/address'
 import { RendezvousClient } from './rendezvous-client'
 import { ensureSealReady, openSignal, sealSignal } from './sealed-signal'
 import { openEnvelope, sealEnvelope, type SocialBody } from './social-envelope'
+import { sealBackup, openBackup } from '../backup/backup-crypto'
+import { collectBackupState, mergeBackupState } from '../backup/backup-sync'
 import { loadJSON, saveJSON } from '../shared/local-store'
 import type { Identity } from '../shared/types'
 import type { SecureSession } from '../session/use-secure-session'
@@ -15,9 +17,12 @@ interface Args {
   identity: Identity | null
   address: string
   pseudo: string
+  mnemonic: string
   session: SecureSession
   roster: RosterState
 }
+
+const BACKUP_DEBOUNCE_MS = 2_000
 
 /** Acheminer un signal WebRTC entrant (offer→answer / answer→apply) vers la session. */
 async function routeSignal(
@@ -45,12 +50,12 @@ export interface RendezvousState {
 }
 
 /** Branche le relai : présence, connexion auto ami-à-ami, et demandes d'amis consenties. */
-export function useRendezvous({ identity, address, pseudo, session, roster }: Args): RendezvousState {
+export function useRendezvous({ identity, address, pseudo, mnemonic, session, roster }: Args): RendezvousState {
   const clientRef = useRef<RendezvousClient | null>(null)
   const [relayOnline, setRelayOnline] = useState(false)
   const [incoming, setIncoming] = useState<FriendRequest[]>(() => loadJSON<FriendRequest[]>('requests', []))
-  const live = useRef({ identity, session, roster, pseudo, address })
-  live.current = { identity, session, roster, pseudo, address }
+  const live = useRef({ identity, session, roster, pseudo, address, mnemonic })
+  live.current = { identity, session, roster, pseudo, address, mnemonic }
 
   useEffect(() => { saveJSON('requests', incoming) }, [incoming])
 
@@ -66,26 +71,57 @@ export function useRendezvous({ identity, address, pseudo, session, roster }: Ar
     } catch (err) { console.error('[rendezvous] envelope failed', err) }
   }, [])
 
+  // Pull au login : restaure roster/historique depuis le blob chiffré, puis recharge si fusion.
+  const handleBackup = useCallback((blob: string | null): void => {
+    const { mnemonic: m } = live.current
+    if (!blob || !m) return
+    void openBackup(blob, m)
+      .then((state) => { if (state && mergeBackupState(state)) window.location.reload() })
+      .catch((err) => console.error('[backup] restore failed', err))
+  }, [])
+
+  // Push debouncé : scelle l'état courant et l'envoie au relai (opaque).
+  const pushBackup = useCallback((): void => {
+    const { mnemonic: m } = live.current
+    const client = clientRef.current
+    if (!m || !client) return
+    void sealBackup(collectBackupState(), m)
+      .then((blob) => client.backupPut(blob))
+      .catch((err) => console.error('[backup] push failed', err))
+  }, [])
+
   useEffect(() => {
     if (!identity || !address) return
     let active = true
     ensureSealReady().then(() => {
       if (!active) return
       const client = new RendezvousClient(relayUrl, address, {
-        onOpen: (online) => { setRelayOnline(true); online.forEach((a) => live.current.roster.setPresence(a, 'online')) },
+        onOpen: (online) => {
+          setRelayOnline(true)
+          online.forEach((a) => live.current.roster.setPresence(a, 'online'))
+          client.backupGet()
+        },
         onPresence: (a, s) => live.current.roster.setPresence(a, s),
         onSignal: (f, p) => {
           const c = live.current
           if (c.identity && clientRef.current) void routeSignal(f, p, c.identity, c.session, clientRef.current)
         },
         onEnvelope: handleEnvelope,
+        onBackup: handleBackup,
         onClose: () => { setRelayOnline(false); live.current.roster.resetPresence() },
       })
       clientRef.current = client
       client.connect()
     }).catch((err) => console.error('[rendezvous] init failed', err))
     return () => { active = false; clientRef.current?.close(); clientRef.current = null }
-  }, [identity, address, relayUrl, handleEnvelope])
+  }, [identity, address, relayUrl, handleEnvelope, handleBackup])
+
+  // Sauvegarde debouncée à chaque évolution du roster, de l'historique ou du pseudo.
+  useEffect(() => {
+    if (!relayOnline) return
+    const timer = setTimeout(pushBackup, BACKUP_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [relayOnline, roster.friends, session.history, pseudo, pushBackup])
 
   const connectTo = useCallback(async (friend: Friend): Promise<void> => {
     const { identity: id0, session: s } = live.current

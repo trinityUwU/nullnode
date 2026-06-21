@@ -26,12 +26,23 @@ export interface AckMessage {
   ids: string[];
 }
 
+export interface BackupPutMessage {
+  t: "backup_put";
+  blob: string;
+}
+
+export interface BackupGetMessage {
+  t: "backup_get";
+}
+
 export type ClientMessage =
   | HelloMessage
   | SignalInMessage
   | PingMessage
   | RelayInMessage
-  | AckMessage;
+  | AckMessage
+  | BackupPutMessage
+  | BackupGetMessage;
 
 export interface WelcomeMessage {
   t: "welcome";
@@ -66,11 +77,17 @@ export interface ErrorMessage {
   code: string;
 }
 
+export interface BackupOutMessage {
+  t: "backup";
+  blob: string | null;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | PresenceMessage
   | SignalOutMessage
   | EnvelopeOutMessage
+  | BackupOutMessage
   | PongMessage
   | ErrorMessage;
 
@@ -93,6 +110,10 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   if (raw.t === "ack" && isStringArray(raw.ids)) {
     return { t: "ack", ids: raw.ids };
   }
+  if (raw.t === "backup_put" && typeof raw.blob === "string") {
+    return { t: "backup_put", blob: raw.blob };
+  }
+  if (raw.t === "backup_get") return { t: "backup_get" };
   return null;
 }
 

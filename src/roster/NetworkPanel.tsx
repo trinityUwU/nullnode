@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { IdentityCard } from '../identity/IdentityCard'
 import { RecoveryPanel } from '../identity/RecoveryPanel'
+import { BackupPanel } from '../backup/BackupPanel'
 import { AddFriend } from './AddFriend'
 import { FriendsList } from './FriendsList'
 import { FriendRequests } from './FriendRequests'
@@ -42,6 +43,7 @@ export function NetworkPanel(props: Props): React.ReactElement {
       </header>
       <IdentityCard identity={identity} />
       <RecoveryPanel identity={identity} />
+      <BackupPanel mnemonic={identity.mnemonic} />
       <FriendRequests requests={requests} onAccept={onAccept} onDecline={onDecline} />
       <AddFriend onSend={onSendRequest} />
       <FriendsList roster={roster} onChat={onChat} />
