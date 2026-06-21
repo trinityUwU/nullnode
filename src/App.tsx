@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { BootSequence } from './boot/BootSequence'
 import { NetworkScene } from './visualizer/NetworkScene'
 import { HudOverlay } from './hud/HudOverlay'
 import { CommsConsole } from './comms/CommsConsole'
 import { NetworkPanel } from './roster/NetworkPanel'
+import { useUnread } from './comms/use-unread'
 import { useIdentity } from './identity/use-identity'
 import { useRoster } from './roster/use-roster'
 import { useSecureSession } from './session/use-secure-session'
@@ -12,12 +13,31 @@ import { useRendezvous } from './rendezvous/use-rendezvous'
 
 export function App(): React.ReactElement {
   const [booted, setBooted] = useState(false)
+  const [chatPeer, setChatPeer] = useState<string | null>(null)
+
   const identity = useIdentity()
   const roster = useRoster(identity.address || null)
   const session = useSecureSession(identity.identity)
+  const unread = useUnread(session.history)
   const rendezvous = useRendezvous({
     identity: identity.identity, address: identity.address, pseudo: identity.pseudo, session, roster,
   })
+
+  // Keep the open conversation marked as read as new messages land.
+  useEffect(() => { if (chatPeer) unread.markSeen(chatPeer) }, [chatPeer, session.history, unread])
+
+  const openConversation = useCallback((address: string): void => {
+    unread.markSeen(address)
+    setChatPeer(address)
+    const friend = roster.friends.find((f) => f.address === address)
+    const connectedHere = session.phase === 'secure' && session.peerAddress === address
+    if (friend && friend.presence === 'online' && !connectedHere) void rendezvous.connectTo(friend)
+  }, [roster.friends, session.phase, session.peerAddress, rendezvous, unread])
+
+  // Incoming connection we did not initiate → surface a notice, don't force-open.
+  const incomingPeer =
+    session.phase === 'secure' && session.peerAddress && session.peerAddress !== chatPeer
+      ? session.peerAddress : null
 
   return (
     <main className="relative h-full w-full overflow-hidden">
@@ -38,16 +58,30 @@ export function App(): React.ReactElement {
           roster={roster}
           relayOnline={rendezvous.relayOnline}
           requests={rendezvous.incoming}
-          onChat={(f) => void rendezvous.connectTo(f)}
+          onChat={(f) => openConversation(f.address)}
           onSendRequest={rendezvous.sendRequest}
           onAccept={rendezvous.acceptRequest}
           onDecline={rendezvous.declineRequest}
         />
-        <CommsConsole session={session} />
+        <CommsConsole
+          session={session}
+          friends={roster.friends}
+          unread={unread}
+          chatPeer={chatPeer}
+          incomingPeer={incomingPeer}
+          onOpenChat={openConversation}
+          onCloseChat={() => setChatPeer(null)}
+        />
       </div>
 
       <AnimatePresence>
-        {!booted && <BootSequence onComplete={() => setBooted(true)} />}
+        {!booted && (
+          <BootSequence
+            identityReady={!!identity.identity}
+            relayOnline={rendezvous.relayOnline}
+            onComplete={() => setBooted(true)}
+          />
+        )}
       </AnimatePresence>
     </main>
   )

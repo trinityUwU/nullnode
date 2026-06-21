@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { deriveSession, open, seal, type SessionKeys } from '../crypto/encryption'
 import { PeerLink } from '../transport/peer-link'
 import { decodeDrop, encodeDrop } from '../transport/dead-drop'
+import { encodeAddress } from '../identity/address'
+import { appendMessage, loadHistory, messagesFor, type History } from './history'
 import type { ConnectionPhase, Identity, SecureMessage } from '../shared/types'
 
 type Sdp = RTCSessionDescriptionInit
@@ -12,9 +14,11 @@ function newId(): string {
 
 export interface SecureSession {
   phase: ConnectionPhase
-  messages: SecureMessage[]
-  localDrop: string
+  peerAddress: string
   peerFingerprint: string
+  history: History
+  messagesFor: (peer: string) => SecureMessage[]
+  localDrop: string
   hostSession: () => Promise<void>
   joinSession: (offerCode: string) => Promise<void>
   completeSession: (answerCode: string) => Promise<void>
@@ -24,41 +28,52 @@ export interface SecureSession {
   sendMessage: (body: string) => void
 }
 
-/** Drives one secure channel, built on the persistent network identity. */
+/** Drives one secure channel + persists per-peer history across sessions. */
 export function useSecureSession(identity: Identity | null): SecureSession {
   const [phase, setPhase] = useState<ConnectionPhase>('generating-keys')
-  const [messages, setMessages] = useState<SecureMessage[]>([])
-  const [localDrop, setLocalDrop] = useState('')
+  const [peerAddress, setPeerAddress] = useState('')
   const [peerFingerprint, setPeerFingerprint] = useState('')
+  const [localDrop, setLocalDrop] = useState('')
+  const [history, setHistory] = useState<History>(() => loadHistory())
 
   const linkRef = useRef<PeerLink | null>(null)
   const keysRef = useRef<SessionKeys | null>(null)
   const identityRef = useRef<Identity | null>(null)
+  const peerRef = useRef('')
 
   useEffect(() => {
     if (identity) { identityRef.current = identity; setPhase('idle') }
     return () => linkRef.current?.close()
   }, [identity])
 
+  const record = useCallback((msg: SecureMessage): void => {
+    if (!peerRef.current) return
+    setHistory((prev) => appendMessage(prev, peerRef.current, msg))
+  }, [])
+
   const handleIncoming = useCallback((raw: string): void => {
     if (!keysRef.current) return
     try {
       const body = open(keysRef.current, raw)
-      setMessages((prev) => [...prev, {
-        id: newId(), author: 'peer', body, at: Date.now(), cipherTag: raw.slice(-4).toUpperCase(),
-      }])
+      record({ id: newId(), author: 'peer', body, at: Date.now(), cipherTag: raw.slice(-4).toUpperCase() })
     } catch (err) { console.error('[session] decrypt failed', err) }
-  }, [])
+  }, [record])
 
-  const handleState = useCallback((isOpen: boolean): void => {
-    setPhase(isOpen ? 'secure' : 'lost')
-  }, [])
+  const handleState = useCallback((isOpen: boolean): void => setPhase(isOpen ? 'secure' : 'lost'), [])
 
   const link = useCallback((): PeerLink => {
     const l = new PeerLink(handleState, handleIncoming)
     linkRef.current = l
     return l
   }, [handleState, handleIncoming])
+
+  const bindPeer = useCallback(async (peerPub: Uint8Array, initiator: boolean): Promise<void> => {
+    keysRef.current = await deriveSession(identityRef.current!, peerPub, initiator)
+    setPeerFingerprint(keysRef.current.peerFingerprint)
+    const addr = encodeAddress(peerPub)
+    peerRef.current = addr
+    setPeerAddress(addr)
+  }, [])
 
   const hostSession = useCallback(async (): Promise<void> => {
     setPhase('awaiting-peer')
@@ -69,34 +84,29 @@ export function useSecureSession(identity: Identity | null): SecureSession {
   const joinSession = useCallback(async (offerCode: string): Promise<void> => {
     setPhase('handshaking')
     const drop = decodeDrop(offerCode)
-    keysRef.current = await deriveSession(identityRef.current!, drop.pub, false)
-    setPeerFingerprint(keysRef.current.peerFingerprint)
+    await bindPeer(drop.pub, false)
     const answer = await link().acceptOffer(drop.sdp)
     setLocalDrop(encodeDrop('answer', answer, identityRef.current!.publicKey))
-  }, [link])
+  }, [link, bindPeer])
 
   const completeSession = useCallback(async (answerCode: string): Promise<void> => {
     setPhase('handshaking')
     const drop = decodeDrop(answerCode)
-    keysRef.current = await deriveSession(identityRef.current!, drop.pub, true)
-    setPeerFingerprint(keysRef.current.peerFingerprint)
+    await bindPeer(drop.pub, true)
     await linkRef.current!.acceptAnswer(drop.sdp)
-  }, [])
+  }, [bindPeer])
 
-  // Rendezvous primitives — both peers already know each other's key (from the roster).
   const beginOffer = useCallback(async (peerPub: Uint8Array): Promise<Sdp> => {
     setPhase('handshaking')
-    keysRef.current = await deriveSession(identityRef.current!, peerPub, true)
-    setPeerFingerprint(keysRef.current.peerFingerprint)
+    await bindPeer(peerPub, true)
     return link().createOffer()
-  }, [link])
+  }, [link, bindPeer])
 
   const respondToOffer = useCallback(async (peerPub: Uint8Array, offer: Sdp): Promise<Sdp> => {
     setPhase('handshaking')
-    keysRef.current = await deriveSession(identityRef.current!, peerPub, false)
-    setPeerFingerprint(keysRef.current.peerFingerprint)
+    await bindPeer(peerPub, false)
     return link().acceptOffer(offer)
-  }, [link])
+  }, [link, bindPeer])
 
   const applyAnswer = useCallback(async (answer: Sdp): Promise<void> => {
     await linkRef.current?.acceptAnswer(answer)
@@ -106,13 +116,13 @@ export function useSecureSession(identity: Identity | null): SecureSession {
     if (!keysRef.current || !body.trim()) return
     const { payload, tag } = seal(keysRef.current, body)
     linkRef.current?.send(payload)
-    setMessages((prev) => [...prev, {
-      id: newId(), author: 'self', body, at: Date.now(), cipherTag: tag,
-    }])
-  }, [])
+    record({ id: newId(), author: 'self', body, at: Date.now(), cipherTag: tag })
+  }, [record])
+
+  const getMessages = useCallback((peer: string): SecureMessage[] => messagesFor(history, peer), [history])
 
   return {
-    phase, messages, localDrop, peerFingerprint,
+    phase, peerAddress, peerFingerprint, history, messagesFor: getMessages, localDrop,
     hostSession, joinSession, completeSession,
     beginOffer, respondToOffer, applyAnswer, sendMessage,
   }
