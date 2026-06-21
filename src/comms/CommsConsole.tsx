@@ -10,6 +10,7 @@ interface Props {
   session: SecureSession
   friends: Friend[]
   unread: UnreadState
+  selfPseudo: string
   chatPeer: string | null
   incomingPeer: string | null
   onOpenChat: (peer: string) => void
@@ -18,16 +19,16 @@ interface Props {
 
 /** Right console: conversation list + incoming notice, or the open conversation. */
 export function CommsConsole(props: Props): React.ReactElement {
-  const { session, friends, unread, chatPeer, incomingPeer, onOpenChat, onCloseChat } = props
+  const { session, friends, unread, selfPseudo, chatPeer, incomingPeer, onOpenChat, onCloseChat } = props
   return (
     <motion.aside
       initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="relative z-10 flex w-[480px] flex-col gap-4 rounded-lg border p-6 backdrop-blur-sm"
+      className="relative z-10 flex w-[480px] min-w-0 flex-col gap-4 overflow-hidden rounded-lg border p-6 backdrop-blur-sm"
       style={{ borderColor: 'var(--line)', background: 'rgba(15,18,20,0.72)' }}
     >
       {chatPeer ? (
-        <MessageStream session={session} peer={chatPeer} friends={friends} onBack={onCloseChat} />
+        <MessageStream session={session} peer={chatPeer} friends={friends} selfPseudo={selfPseudo} onBack={onCloseChat} />
       ) : (
         <>
           <header className="flex items-center justify-between">

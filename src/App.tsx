@@ -26,7 +26,8 @@ export function App(): React.ReactElement {
   })
 
   // Keep the open conversation marked as read as new messages land.
-  useEffect(() => { if (chatPeer) unread.markSeen(chatPeer) }, [chatPeer, session.history, unread])
+  const { markSeen } = unread
+  useEffect(() => { if (chatPeer) markSeen(chatPeer) }, [chatPeer, session.history, markSeen])
 
   const openConversation = useCallback((address: string): void => {
     unread.markSeen(address)
@@ -80,6 +81,7 @@ export function App(): React.ReactElement {
           session={session}
           friends={roster.friends}
           unread={unread}
+          selfPseudo={identity.pseudo}
           chatPeer={chatPeer}
           incomingPeer={incomingPeer}
           onOpenChat={openConversation}

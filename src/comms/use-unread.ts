@@ -20,7 +20,9 @@ export function useUnread(history: History): UnreadState {
 
   const markSeen = useCallback((peer: string): void => {
     setSeen((prev) => {
-      const next = { ...prev, [peer]: history[peer]?.length ?? 0 }
+      const target = history[peer]?.length ?? 0
+      if ((prev[peer] ?? 0) === target) return prev // déjà à jour → même réf, pas de re-render
+      const next = { ...prev, [peer]: target }
       saveJSON('seen', next)
       return next
     })

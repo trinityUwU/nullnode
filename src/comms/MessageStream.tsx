@@ -5,7 +5,7 @@ import type { SecureSession } from '../session/use-secure-session'
 import type { SecureMessage } from '../shared/types'
 import type { Friend } from '../roster/types'
 
-function Bubble({ msg }: { msg: SecureMessage }): React.ReactElement {
+function Bubble({ msg, authorName }: { msg: SecureMessage; authorName: string }): React.ReactElement {
   const self = msg.author === 'self'
   return (
     <motion.div
@@ -13,7 +13,7 @@ function Bubble({ msg }: { msg: SecureMessage }): React.ReactElement {
       className="flex flex-col gap-1" style={{ alignItems: self ? 'flex-end' : 'flex-start' }}
     >
       <div className="flex items-center gap-2 text-[9px]" style={{ color: 'var(--text-lo)' }}>
-        <span style={{ color: 'var(--accent-dim)' }}>·0x{msg.cipherTag}</span>
+        <span style={{ color: 'var(--accent-dim)' }}>{authorName}</span>
         <span>{new Date(msg.at).toISOString().slice(11, 19)}</span>
       </div>
       <div
@@ -32,14 +32,16 @@ interface Props {
   session: SecureSession
   peer: string
   friends: Friend[]
+  selfPseudo: string
   onBack: () => void
 }
 
 /** One conversation: header with the real peer handle, message stream, composer. */
-export function MessageStream({ session, peer, friends, onBack }: Props): React.ReactElement {
+export function MessageStream({ session, peer, friends, selfPseudo, onBack }: Props): React.ReactElement {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const messages = session.messagesFor(peer)
+  const peerName = resolvePeerHandle(peer, friends).split('#')[0]
   const connected = session.phase === 'secure' && session.peerAddress === peer
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length])
@@ -47,7 +49,7 @@ export function MessageStream({ session, peer, friends, onBack }: Props): React.
   const submit = (): void => { session.sendMessage(draft); setDraft('') }
 
   return (
-    <div className="flex h-[60vh] w-[460px] flex-col gap-4">
+    <div className="flex h-[60vh] w-full min-w-0 flex-col gap-4">
       <header className="flex items-center gap-3 border-b pb-3" style={{ borderColor: 'var(--line)' }}>
         <button onClick={onBack} className="text-[14px]" style={{ color: 'var(--text-mid)' }}>‹</button>
         <span className="h-2 w-2 rounded-full" style={{ background: connected ? 'var(--accent)' : 'var(--text-lo)' }} />
@@ -60,7 +62,7 @@ export function MessageStream({ session, peer, friends, onBack }: Props): React.
         {messages.length === 0 && (
           <span className="text-[11px]" style={{ color: 'var(--text-lo)' }}>end-to-end encrypted. say something.</span>
         )}
-        {messages.map((m) => <Bubble key={m.id} msg={m} />)}
+        {messages.map((m) => <Bubble key={m.id} msg={m} authorName={m.author === 'self' ? selfPseudo : peerName} />)}
         <div ref={endRef} />
       </div>
       <div className="flex gap-2">
