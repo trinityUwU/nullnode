@@ -9,8 +9,12 @@
 - [x] Présence temps réel (online/offline) dans le roster
 - [x] Identité : pseudo#discriminant (dérivé clé), pseudo éditable
 - [x] Friend requests consenties + store-and-forward (offline delivery)
+- [x] Portabilité compte : seed phrase BIP39 (12 mots), reveal + restore. Validé E2E (déterminisme).
 - [ ] **Valider à la main : 2 fenêtres → demande d'ami → accept → chat** ← prochaine action
-- [ ] Portabilité compte : seed phrase / export-import de clé (se connecter d'ailleurs)
+- [ ] **Backup données zero-knowledge** : chiffrer roster+historique (clé dérivée seed) → push relai
+      (endpoint backup/restore) + export fichier manuel. ← gros morceau suivant
+- [ ] Messages asynchrones via store-and-forward (recevoir pendant absence)
+- [ ] Roster par-compte : à l'import d'une autre seed, charger le roster de CE compte (dette actuelle)
 - [ ] Fallback dead-drop si relai down (UI)
 - [ ] TTL / purge des envelopes non-ackées (croissance non bornée du store, signalé par l'agent)
 - [ ] Statut `away` (inactivité)

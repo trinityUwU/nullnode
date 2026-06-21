@@ -10,7 +10,18 @@ Une blockchain/gossip pour « ce compte existe-t-il ? » résout un problème qu
 - **Clé = compte**. Adresse NULLNODE = la clé. Aucun annuaire, aucun serveur d'unicité.
 - **Handle = PSEUDO#discriminant** : pseudo lisible (éditable) + 6 chiffres dérivés de la clé
   (distingue les homonymes, lié cryptographiquement à la clé). `src/identity/address.ts`.
-- **Portabilité** (TODO) : seed phrase / export de clé pour se reconnecter ailleurs.
+- **Portabilité = seed phrase BIP39 (12 mots)** ✅ : l'identité est DÉRIVÉE de la phrase de
+  façon déterministe (`crypto_kx_seed_keypair`). Même phrase = même identité partout.
+  `src/identity/seed.ts`. Reveal/restore dans `RecoveryPanel.tsx`.
+
+## Persistance / multi-appareils (décidé 2026-06-21)
+Vérité dure : le P2P pur NE PEUT PAS récupérer des données sans point de persistance qui
+survit à la déconnexion. Stratégie actée :
+- **Identité** → seed phrase (fait). Régénère la même clé n'importe où, sans réseau.
+- **Données** (roster, historique) → **backup chiffré zero-knowledge sur le relai** (à faire) :
+  blob chiffré (clé dérivée de la seed), le relai ne voit que du ciphertext. + export fichier manuel.
+- Couvre le cas « seul connecté → nouvel appareil 3j après » car le relai (ton infra) survit.
+- **Messages asynchrones** (recevoir pendant absence) → router via le store-and-forward existant.
 
 ## Demandes d'amis (décidé 2026-06-21) — consentement + store-and-forward
 Fini l'ajout unilatéral local. Modèle relation mutuelle consentie :
