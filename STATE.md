@@ -50,6 +50,18 @@ Asynchrone via le relai **store-and-forward** : si B offline, le relai stocke et
   connexion auto ami-à-ami via bouton CALL).
 - ✅ Panneau réseau : statut RELAY UP/DOWN, présence temps réel, bouton CALL par ami online.
 
+## ▶ REPRISE (post-compaction) — lire en premier
+Prochaine action = **valider à la main le flux 2 fenêtres** (P0 dans TODO.md), puis attaquer
+**P1 backup zero-knowledge** via sous-agents. Tout le backlog déléguable est dans `TODO.md`
+(structuré P0→P3, chaque tâche autonome avec fichiers + contrat). Relancer relai :
+`cd relay && ./start.sh` (:8791). App : `./start.sh` (:5180). Mono-session WebRTC actuelle.
+
+## Ajouts 2026-06-21 (messagerie)
+- ✅ Historique persistant par pair (`session/history.ts`) — survit au refresh
+- ✅ Vrais handles dans le chat (`comms/peer-label.ts` : PSEUDO#disc)
+- ✅ Connexion entrante ne force plus l'ouverture (notif + `comms/use-unread.ts` + ConversationList)
+- ✅ Boot réel (`boot/BootSequence.tsx`) piloté par identité dérivée + relai connecté
+
 ## Ajouts 2026-06-21 (session friend-requests)
 - ✅ Identité : pseudo éditable + handle PSEUDO#disc (discriminant dérivé clé), persistés
 - ✅ Friend requests : envoi (SEND), réception (PENDING REQUESTS), accept (réciproque) / decline
