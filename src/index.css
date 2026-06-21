@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/jetbrains-mono';
+@import './shared/design/tokens.css';
+
+@theme {
+  --font-display: 'Space Grotesk Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--void);
+  color: var(--text-hi);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--void);
+}
+
+/* technical grid backdrop */
+.grid-backdrop {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, #000 30%, transparent 75%);
+}
+
+/* scanline flicker for boot/terminal mood */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0, 0, 0, 0.25) 3px 4px);
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+}
+
+.accent-glow {
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+
+@keyframes pulse-node {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}

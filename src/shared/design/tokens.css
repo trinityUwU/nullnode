@@ -1,0 +1,28 @@
+/* NULLNODE — design system. Semantic tokens only, single phosphor accent. */
+:root {
+  /* surfaces — near-black, layered */
+  --void: #050607;
+  --surface-0: #0a0c0e;
+  --surface-1: #0f1214;
+  --surface-2: #161a1d;
+  --line: #1d2225;
+  --line-bright: #2a3236;
+
+  /* text */
+  --text-hi: #e8edf0;
+  --text-mid: #8a9499;
+  --text-lo: #4a5358;
+
+  /* single accent — phosphor green */
+  --accent: #00ff9d;
+  --accent-dim: #0b9e68;
+  --accent-glow: rgba(0, 255, 157, 0.45);
+
+  /* status semantics */
+  --danger: #ff3b54;
+  --warn: #ffb020;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.7, 0, 0.2, 1);
+}
