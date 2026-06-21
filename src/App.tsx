@@ -84,6 +84,7 @@ export function App(): React.ReactElement {
           selfPseudo={identity.pseudo}
           chatPeer={chatPeer}
           incomingPeer={incomingPeer}
+          onSend={rendezvous.sendDM}
           onOpenChat={openConversation}
           onCloseChat={() => setChatPeer(null)}
         />

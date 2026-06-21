@@ -33,11 +33,12 @@ interface Props {
   peer: string
   friends: Friend[]
   selfPseudo: string
+  onSend: (peer: string, body: string) => void
   onBack: () => void
 }
 
 /** One conversation: header with the real peer handle, message stream, composer. */
-export function MessageStream({ session, peer, friends, selfPseudo, onBack }: Props): React.ReactElement {
+export function MessageStream({ session, peer, friends, selfPseudo, onSend, onBack }: Props): React.ReactElement {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const messages = session.messagesFor(peer)
@@ -46,7 +47,7 @@ export function MessageStream({ session, peer, friends, selfPseudo, onBack }: Pr
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length])
 
-  const submit = (): void => { session.sendMessage(draft); setDraft('') }
+  const submit = (): void => { onSend(peer, draft); setDraft('') }
 
   return (
     <div className="flex h-[60vh] w-full min-w-0 flex-col gap-4">
@@ -55,7 +56,7 @@ export function MessageStream({ session, peer, friends, selfPseudo, onBack }: Pr
         <span className="h-2 w-2 rounded-full" style={{ background: connected ? 'var(--accent)' : 'var(--text-lo)' }} />
         <span className="text-[13px]" style={{ color: 'var(--text-hi)' }}>{resolvePeerHandle(peer, friends)}</span>
         <span className="ml-auto text-[9px]" style={{ color: connected ? 'var(--accent)' : 'var(--text-lo)' }}>
-          {connected ? 'SECURE' : 'OFFLINE'}
+          {connected ? 'SECURE' : 'RELAY'}
         </span>
       </header>
       <div className="flex flex-1 flex-col gap-4 overflow-auto pr-2">
@@ -69,14 +70,14 @@ export function MessageStream({ session, peer, friends, selfPseudo, onBack }: Pr
         <input
           value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder={connected ? 'transmit…' : 'peer offline — reconnect to send'}
-          disabled={!connected} spellCheck={false}
-          className="flex-1 rounded border px-3 py-2 text-[12px] outline-none disabled:opacity-40"
+          placeholder={connected ? 'transmit…' : 'transmit (delivered when online)…'}
+          spellCheck={false}
+          className="flex-1 rounded border px-3 py-2 text-[12px] outline-none"
           style={{ borderColor: 'var(--line)', background: 'var(--surface-0)', color: 'var(--text-hi)' }}
         />
         <button
-          onClick={submit} disabled={!connected}
-          className="rounded border px-4 text-[11px] tracking-[0.15em] transition-all hover:brightness-125 disabled:opacity-40"
+          onClick={submit}
+          className="rounded border px-4 text-[11px] tracking-[0.15em] transition-all hover:brightness-125"
           style={{ borderColor: 'var(--accent-dim)', color: 'var(--accent)' }}
         >SEND ▸</button>
       </div>

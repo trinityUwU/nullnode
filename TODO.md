@@ -40,12 +40,13 @@ relai puisse lire quoi que ce soit. Couvre le cas « seul connecté → nouvel a
       (préfixer les clés localStorage par l'adresse). Pas requis pour le mono-compte/nouvel appareil
       (déjà couvert), mais bloquant pour plusieurs comptes sur le même navigateur.
 
-## P1 — MESSAGES ASYNCHRONES (recevoir pendant absence)
-- [ ] Router les messages chiffrés via le **store-and-forward existant** (envelope kind:'dm')
-      quand le DataChannel n'est pas ouvert. DataChannel reste prioritaire si les 2 sont online.
-      Hook : étendre `social-envelope.ts` (nouveau kind) + traitement dans `use-rendezvous.ts`
-      (appliquer un dm entrant à l'historique via la session). Délivrance offline déjà gérée par
-      le relai (flush au hello).
+## P1 — MESSAGES ASYNCHRONES — ✅ LIVRÉ (2026-06-21)
+- [x] DM routés via store-and-forward (envelope `kind:'dm'`) quand le DataChannel est fermé ;
+      DataChannel prioritaire si les 2 sont online. `social-envelope.ts` (kind dm) +
+      `sendDM` dans `use-rendezvous.ts` (DataChannel sinon relay) + `appendExternal` dédupliqué
+      par id dans `use-secure-session.ts`. Délivrance offline = flush au hello (relai existant).
+      Input messagerie débloqué offline (libellé « delivered when online », statut RELAY).
+- [ ] **À VALIDER MAIN (P0)** : A online + B offline → A envoie → B se connecte → B reçoit.
 
 ## P1 — MULTI-CONVERSATION SIMULTANÉE
 - [ ] Aujourd'hui mono-session : une seule connexion WebRTC active (`use-secure-session`).

@@ -45,9 +45,14 @@ export interface RendezvousState {
   relayOnline: boolean
   incoming: FriendRequest[]
   connectTo: (friend: Friend) => Promise<void>
+  sendDM: (peer: string, body: string) => void
   sendRequest: (address: string) => { ok: boolean; error?: string }
   acceptRequest: (req: FriendRequest) => void
   declineRequest: (req: FriendRequest) => void
+}
+
+function shortId(): string {
+  return Math.random().toString(36).slice(2, 10)
 }
 
 /** Branche le relai : présence, connexion auto ami-à-ami, et demandes d'amis consenties. */
@@ -64,12 +69,12 @@ export function useRendezvous(args: Args): RendezvousState {
   const relayUrl = import.meta.env.VITE_RELAY_URL ?? DEFAULT_RELAY
 
   const handleEnvelope = useCallback((id: string, from: string, payload: string): void => {
-    const { identity: id0, roster: r } = live.current
+    const { identity: id0, roster: r, session: s } = live.current
     clientRef.current?.ack([id])
     if (!id0) return
     try {
       const body = openEnvelope(payload, id0)
-      applySocial(body, from, r, setIncoming)
+      applySocial(body, from, r, s, setIncoming)
     } catch (err) { console.error('[rendezvous] envelope failed', err) }
   }, [])
 
@@ -146,6 +151,22 @@ export function useRendezvous(args: Args): RendezvousState {
     roster.friends.filter((f) => f.presence === 'online').forEach((f) => announceProfile(f.address))
   }, [relayOnline, pseudo, roster.friends, announceProfile])
 
+  // Envoi d'un DM : DataChannel si le pair est connecté en direct, sinon store-and-forward
+  // chiffré via le relai (délivré quand le pair revient online). Toujours enregistré localement.
+  const sendDM = useCallback((peer: string, body: string): void => {
+    const { session: s, address: self } = live.current
+    const text = body.trim()
+    if (!text) return
+    const liveChannel = s.phase === 'secure' && s.peerAddress === peer
+    if (liveChannel) { s.sendMessage(text); return }
+    const id = shortId()
+    s.appendExternal(peer, { id, author: 'self', body: text, at: Date.now(), cipherTag: '····' })
+    try {
+      const pub = decodeAddress(peer)
+      clientRef.current?.relay(peer, sealEnvelope({ kind: 'dm', id, body: text, at: Date.now(), address: self }, pub))
+    } catch (err) { console.error('[rendezvous] dm relay failed', err) }
+  }, [])
+
   const connectTo = useCallback(async (friend: Friend): Promise<void> => {
     const { identity: id0, session: s } = live.current
     if (!id0 || !clientRef.current) return
@@ -188,12 +209,12 @@ export function useRendezvous(args: Args): RendezvousState {
     setIncoming((prev) => prev.filter((x) => x.address !== req.address))
   }, [])
 
-  return { relayOnline, incoming, connectTo, sendRequest, acceptRequest, declineRequest }
+  return { relayOnline, incoming, connectTo, sendDM, sendRequest, acceptRequest, declineRequest }
 }
 
 /** Applique une enveloppe sociale entrante : requête en attente, ou acceptation réciproque. */
 function applySocial(
-  body: SocialBody, _from: string, roster: RosterState,
+  body: SocialBody, _from: string, roster: RosterState, session: SecureSession,
   setIncoming: React.Dispatch<React.SetStateAction<FriendRequest[]>>,
 ): void {
   if (body.kind === 'friend_request') {
@@ -205,5 +226,9 @@ function applySocial(
     roster.addFriend(body.address, body.pseudo)
   } else if (body.kind === 'profile') {
     roster.updatePseudo(body.address, body.pseudo)
+  } else if (body.kind === 'dm') {
+    session.appendExternal(body.address, {
+      id: body.id, author: 'peer', body: body.body, at: body.at, cipherTag: '····',
+    })
   }
 }

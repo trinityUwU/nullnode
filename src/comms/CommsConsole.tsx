@@ -13,13 +13,14 @@ interface Props {
   selfPseudo: string
   chatPeer: string | null
   incomingPeer: string | null
+  onSend: (peer: string, body: string) => void
   onOpenChat: (peer: string) => void
   onCloseChat: () => void
 }
 
 /** Right console: conversation list + incoming notice, or the open conversation. */
 export function CommsConsole(props: Props): React.ReactElement {
-  const { session, friends, unread, selfPseudo, chatPeer, incomingPeer, onOpenChat, onCloseChat } = props
+  const { session, friends, unread, selfPseudo, chatPeer, incomingPeer, onSend, onOpenChat, onCloseChat } = props
   return (
     <motion.aside
       initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
@@ -28,7 +29,7 @@ export function CommsConsole(props: Props): React.ReactElement {
       style={{ borderColor: 'var(--line)', background: 'rgba(15,18,20,0.72)' }}
     >
       {chatPeer ? (
-        <MessageStream session={session} peer={chatPeer} friends={friends} selfPseudo={selfPseudo} onBack={onCloseChat} />
+        <MessageStream session={session} peer={chatPeer} friends={friends} selfPseudo={selfPseudo} onSend={onSend} onBack={onCloseChat} />
       ) : (
         <>
           <header className="flex items-center justify-between">

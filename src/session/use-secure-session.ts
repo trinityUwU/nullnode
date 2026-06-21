@@ -19,6 +19,7 @@ export interface SecureSession {
   history: History
   messagesFor: (peer: string) => SecureMessage[]
   hydrateHistory: () => void
+  appendExternal: (peer: string, msg: SecureMessage) => void
   localDrop: string
   hostSession: () => Promise<void>
   joinSession: (offerCode: string) => Promise<void>
@@ -124,8 +125,17 @@ export function useSecureSession(identity: Identity | null): SecureSession {
 
   const hydrateHistory = useCallback((): void => setHistory(loadHistory()), [])
 
+  // Insère un message reçu hors-DataChannel (store-and-forward), dédupliqué par id.
+  const appendExternal = useCallback((peer: string, msg: SecureMessage): void => {
+    setHistory((prev) => {
+      if ((prev[peer] ?? []).some((m) => m.id === msg.id)) return prev
+      return appendMessage(prev, peer, msg)
+    })
+  }, [])
+
   return {
-    phase, peerAddress, peerFingerprint, history, messagesFor: getMessages, hydrateHistory, localDrop,
+    phase, peerAddress, peerFingerprint, history, messagesFor: getMessages, hydrateHistory,
+    appendExternal, localDrop,
     hostSession, joinSession, completeSession,
     beginOffer, respondToOffer, applyAnswer, sendMessage,
   }
