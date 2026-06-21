@@ -77,7 +77,11 @@ Comportement relai :
 { kind: 'friend_request', pseudo: string, address: string }  // A demande à B
 { kind: 'friend_accept',  pseudo: string, address: string }  // B accepte A
 { kind: 'friend_decline', address: string }                  // B refuse A
+{ kind: 'profile',        pseudo: string, address: string }  // A annonce son pseudo courant
 ```
+Le `profile` propage les renommages : émis vers chaque ami détecté online (présence) et à
+chaque changement de pseudo local. Le destinataire met à jour `pseudo` de l'ami dans son roster.
+Le pseudo n'est donc jamais figé au moment de l'ajout.
 `address` = l'adresse NULLNODE de l'émetteur (le destinataire l'ajoute à son roster sur accept).
 Côté client : module `src/rendezvous/social-envelope.ts` (seal/open de ces objets, réutilise
 `crypto_box_seal` comme `sealed-signal.ts`). Le hook social gère l'état des requêtes + réciprocité.

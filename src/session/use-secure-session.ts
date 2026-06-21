@@ -18,6 +18,7 @@ export interface SecureSession {
   peerFingerprint: string
   history: History
   messagesFor: (peer: string) => SecureMessage[]
+  hydrateHistory: () => void
   localDrop: string
   hostSession: () => Promise<void>
   joinSession: (offerCode: string) => Promise<void>
@@ -121,8 +122,10 @@ export function useSecureSession(identity: Identity | null): SecureSession {
 
   const getMessages = useCallback((peer: string): SecureMessage[] => messagesFor(history, peer), [history])
 
+  const hydrateHistory = useCallback((): void => setHistory(loadHistory()), [])
+
   return {
-    phase, peerAddress, peerFingerprint, history, messagesFor: getMessages, localDrop,
+    phase, peerAddress, peerFingerprint, history, messagesFor: getMessages, hydrateHistory, localDrop,
     hostSession, joinSession, completeSession,
     beginOffer, respondToOffer, applyAnswer, sendMessage,
   }

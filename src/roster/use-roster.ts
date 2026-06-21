@@ -39,7 +39,9 @@ export interface RosterState {
   removeFriend: (id: string) => void
   hasFriend: (address: string) => boolean
   setPresence: (address: string, presence: Presence) => void
+  updatePseudo: (address: string, pseudo: string) => void
   resetPresence: () => void
+  hydrate: () => void
 }
 
 /** Local friends roster. No central directory — keys are stored and trusted locally. */
@@ -78,13 +80,34 @@ export function useRoster(selfId: string | null): RosterState {
     return friends.some((f) => f.address === address.trim())
   }, [friends])
 
+  // Garde la MÊME référence de tableau si rien ne change (sinon boucle de re-render/announce).
   const setPresence = useCallback((address: string, presence: Presence): void => {
-    setFriends((prev) => prev.map((f) => (f.address === address ? { ...f, presence } : f)))
+    setFriends((prev) => {
+      const target = prev.find((f) => f.address === address)
+      if (!target || target.presence === presence) return prev
+      return prev.map((f) => (f.address === address ? { ...f, presence } : f))
+    })
+  }, [])
+
+  // Met à jour le pseudo d'un ami (propagé quand il se renomme). Conserve un alias custom local.
+  const updatePseudo = useCallback((address: string, pseudo: string): void => {
+    const next = pseudo.trim()
+    if (!next) return
+    setFriends((prev) => {
+      const target = prev.find((f) => f.address === address)
+      if (!target || target.pseudo === next) return prev
+      return prev.map((f) => (f.address === address ? { ...f, pseudo: next } : f))
+    })
   }, [])
 
   const resetPresence = useCallback((): void => {
     setFriends((prev) => prev.map((f) => ({ ...f, presence: 'unknown' as Presence })))
   }, [])
 
-  return { friends, addFriend, removeFriend, hasFriend, setPresence, resetPresence }
+  // Recharge le roster depuis le storage (après restauration d'un backup), sans reload de page.
+  const hydrate = useCallback((): void => {
+    setFriends(loadJSON<Friend[]>('roster', []).map(healFriend))
+  }, [])
+
+  return { friends, addFriend, removeFriend, hasFriend, setPresence, updatePseudo, resetPresence, hydrate }
 }

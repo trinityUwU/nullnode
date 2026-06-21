@@ -8,6 +8,7 @@ export type SocialBody =
   | { kind: 'friend_request'; pseudo: string; address: string }
   | { kind: 'friend_accept'; pseudo: string; address: string }
   | { kind: 'friend_decline'; address: string }
+  | { kind: 'profile'; pseudo: string; address: string }
 
 /** Scelle une enveloppe sociale vers la clé publique du destinataire. */
 export function sealEnvelope(body: SocialBody, recipientPub: Uint8Array): string {

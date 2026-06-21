@@ -20,6 +20,7 @@ interface Args {
   mnemonic: string
   session: SecureSession
   roster: RosterState
+  refreshPseudo: () => void
 }
 
 const BACKUP_DEBOUNCE_MS = 2_000
@@ -50,12 +51,13 @@ export interface RendezvousState {
 }
 
 /** Branche le relai : présence, connexion auto ami-à-ami, et demandes d'amis consenties. */
-export function useRendezvous({ identity, address, pseudo, mnemonic, session, roster }: Args): RendezvousState {
+export function useRendezvous(args: Args): RendezvousState {
+  const { identity, address, pseudo, mnemonic, session, roster, refreshPseudo } = args
   const clientRef = useRef<RendezvousClient | null>(null)
   const [relayOnline, setRelayOnline] = useState(false)
   const [incoming, setIncoming] = useState<FriendRequest[]>(() => loadJSON<FriendRequest[]>('requests', []))
-  const live = useRef({ identity, session, roster, pseudo, address, mnemonic })
-  live.current = { identity, session, roster, pseudo, address, mnemonic }
+  const live = useRef({ identity, session, roster, pseudo, address, mnemonic, refreshPseudo })
+  live.current = { identity, session, roster, pseudo, address, mnemonic, refreshPseudo }
 
   useEffect(() => { saveJSON('requests', incoming) }, [incoming])
 
@@ -71,13 +73,25 @@ export function useRendezvous({ identity, address, pseudo, mnemonic, session, ro
     } catch (err) { console.error('[rendezvous] envelope failed', err) }
   }, [])
 
-  // Pull au login : restaure roster/historique depuis le blob chiffré, puis recharge si fusion.
+  // Pull au login : restaure roster/historique depuis le blob chiffré, hydrate le state en place
+  // (jamais de window.reload : il coupe le socket et boucle).
   const handleBackup = useCallback((blob: string | null): void => {
-    const { mnemonic: m } = live.current
+    const { mnemonic: m, session: s, roster: r, refreshPseudo: refresh } = live.current
     if (!blob || !m) return
     void openBackup(blob, m)
-      .then((state) => { if (state && mergeBackupState(state)) window.location.reload() })
+      .then((state) => {
+        if (state && mergeBackupState(state)) { s.hydrateHistory(); r.hydrate(); refresh() }
+      })
       .catch((err) => console.error('[backup] restore failed', err))
+  }, [])
+
+  // Annonce notre pseudo courant à un ami (propagation des renommages).
+  const announceProfile = useCallback((to: string): void => {
+    const { pseudo: p, address: self } = live.current
+    try {
+      const pub = decodeAddress(to)
+      clientRef.current?.relay(to, sealEnvelope({ kind: 'profile', pseudo: p, address: self }, pub))
+    } catch (err) { console.error('[rendezvous] profile announce failed', err) }
   }, [])
 
   // Push debouncé : scelle l'état courant et l'envoie au relai (opaque).
@@ -101,7 +115,10 @@ export function useRendezvous({ identity, address, pseudo, mnemonic, session, ro
           online.forEach((a) => live.current.roster.setPresence(a, 'online'))
           client.backupGet()
         },
-        onPresence: (a, s) => live.current.roster.setPresence(a, s),
+        onPresence: (a, s) => {
+          live.current.roster.setPresence(a, s)
+          if (s === 'online' && live.current.roster.hasFriend(a)) announceProfile(a)
+        },
         onSignal: (f, p) => {
           const c = live.current
           if (c.identity && clientRef.current) void routeSignal(f, p, c.identity, c.session, clientRef.current)
@@ -122,6 +139,12 @@ export function useRendezvous({ identity, address, pseudo, mnemonic, session, ro
     const timer = setTimeout(pushBackup, BACKUP_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [relayOnline, roster.friends, session.history, pseudo, pushBackup])
+
+  // Diffuse notre pseudo aux amis en ligne : à la connexion et à chaque renommage.
+  useEffect(() => {
+    if (!relayOnline) return
+    roster.friends.filter((f) => f.presence === 'online').forEach((f) => announceProfile(f.address))
+  }, [relayOnline, pseudo, roster.friends, announceProfile])
 
   const connectTo = useCallback(async (friend: Friend): Promise<void> => {
     const { identity: id0, session: s } = live.current
@@ -180,5 +203,7 @@ function applySocial(
       : [...prev, { id: body.address, address: body.address, pseudo: body.pseudo, at: Date.now() }])
   } else if (body.kind === 'friend_accept') {
     roster.addFriend(body.address, body.pseudo)
+  } else if (body.kind === 'profile') {
+    roster.updatePseudo(body.address, body.pseudo)
   }
 }

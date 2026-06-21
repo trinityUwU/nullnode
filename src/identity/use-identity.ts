@@ -28,6 +28,7 @@ export interface IdentityState {
   handle: string
   mnemonic: string
   setPseudo: (next: string) => void
+  refreshPseudo: () => void
   importMnemonic: (words: string) => { ok: boolean; error?: string }
   register: (words: string, name: string) => { ok: boolean; error?: string }
 }
@@ -52,6 +53,8 @@ export function useIdentity(): IdentityState {
     setPseudoState(next)
     saveJSON('pseudo', next)
   }
+
+  const refreshPseudo = (): void => setPseudoState(loadJSON<string>('pseudo', ''))
 
   const importMnemonic = (words: string): { ok: boolean; error?: string } => {
     const clean = words.trim().toLowerCase()
@@ -81,6 +84,7 @@ export function useIdentity(): IdentityState {
     handle: identity ? handle(effectivePseudo, identity.publicKey) : '',
     mnemonic,
     setPseudo,
+    refreshPseudo,
     importMnemonic,
     register,
   }

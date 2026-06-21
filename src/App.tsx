@@ -22,7 +22,7 @@ export function App(): React.ReactElement {
   const unread = useUnread(session.history)
   const rendezvous = useRendezvous({
     identity: identity.identity, address: identity.address, pseudo: identity.pseudo,
-    mnemonic: identity.mnemonic, session, roster,
+    mnemonic: identity.mnemonic, session, roster, refreshPseudo: identity.refreshPseudo,
   })
 
   // Keep the open conversation marked as read as new messages land.
