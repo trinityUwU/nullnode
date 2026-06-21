@@ -10,7 +10,9 @@ Organisation par domaine métier (screaming architecture), pas par couche techni
 
 | Domaine | Responsabilité unique | Frontière publique |
 |---|---|---|
-| `crypto/` | Identité X25519 + chiffrement ChaCha20-Poly1305. Les clés ne quittent jamais la mémoire. | `generateIdentity`, `deriveSession`, `seal`, `open` |
+| `crypto/` | Primitives : keypair X25519 + chiffrement ChaCha20-Poly1305. Les clés ne quittent jamais la mémoire. | `generateIdentity`, `deriveSession`, `seal`, `open` |
+| `identity/` | Identité réseau **persistante** + adresse NULLNODE + callsign. S'appuie sur `crypto`. | `useIdentity`, `encodeAddress`, `decodeAddress`, `callsign`, `IdentityCard` |
+| `roster/` | Carnet d'amis local (CRUD + persistance + présence + confiance). Aucun annuaire central. | `useRoster`, `NetworkPanel` |
 | `transport/` | Lien WebRTC P2P + encodage des dead-drops SDP. Aucune logique crypto. | `PeerLink`, `encodeDrop`, `decodeDrop` |
 | `session/` | Orchestration : relie identité, transport et chiffrement en une session vivante (phase, messages). | `useSecureSession` |
 | `visualizer/` | Scène WebGL (r3f) du réseau de pairs. Lecture seule de la phase, aucune logique métier. | `NetworkScene` |

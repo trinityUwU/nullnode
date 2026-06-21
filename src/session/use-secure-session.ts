@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { generateIdentity } from '../crypto/identity'
 import { deriveSession, open, seal, type SessionKeys } from '../crypto/encryption'
 import { PeerLink } from '../transport/peer-link'
 import { decodeDrop, encodeDrop } from '../transport/dead-drop'
@@ -10,7 +9,6 @@ function newId(): string {
 }
 
 export interface SecureSession {
-  identity: Identity | null
   phase: ConnectionPhase
   messages: SecureMessage[]
   localDrop: string
@@ -21,8 +19,8 @@ export interface SecureSession {
   sendMessage: (body: string) => void
 }
 
-export function useSecureSession(): SecureSession {
-  const [identity, setIdentity] = useState<Identity | null>(null)
+/** Drives one secure channel, built on the persistent network identity. */
+export function useSecureSession(identity: Identity | null): SecureSession {
   const [phase, setPhase] = useState<ConnectionPhase>('generating-keys')
   const [messages, setMessages] = useState<SecureMessage[]>([])
   const [localDrop, setLocalDrop] = useState('')
@@ -33,11 +31,9 @@ export function useSecureSession(): SecureSession {
   const identityRef = useRef<Identity | null>(null)
 
   useEffect(() => {
-    generateIdentity()
-      .then((id) => { identityRef.current = id; setIdentity(id); setPhase('idle') })
-      .catch(() => setPhase('lost'))
+    if (identity) { identityRef.current = identity; setPhase('idle') }
     return () => linkRef.current?.close()
-  }, [])
+  }, [identity])
 
   const handleIncoming = useCallback((raw: string): void => {
     if (!keysRef.current) return
@@ -92,7 +88,7 @@ export function useSecureSession(): SecureSession {
   }, [])
 
   return {
-    identity, phase, messages, localDrop, peerFingerprint,
+    phase, messages, localDrop, peerFingerprint,
     hostSession, joinSession, completeSession, sendMessage,
   }
 }

@@ -29,7 +29,7 @@ void main(){
   vec3 p = position;
   float n = snoise(p*1.4 + uTime*0.18);
   float n2 = snoise(p*3.4 - uTime*0.12);
-  float disp = n*(0.10+0.06*uActive) + n2*0.035;
+  float disp = n*(0.10+0.025*uActive) + n2*0.035;
   p += normal * disp;
   vNoise = n;
   vec4 wp = modelMatrix * vec4(p,1.0);

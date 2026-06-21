@@ -41,7 +41,7 @@ export function NetworkScene({ phase }: { phase: ConnectionPhase }): React.React
       <DataStreams nodes={nodes} connected={connected} secure={secure} />
       <Rig />
       <EffectComposer>
-        <Bloom intensity={active ? 1.5 : 0.95} luminanceThreshold={0.08} luminanceSmoothing={0.3} mipmapBlur />
+        <Bloom intensity={active ? 1.12 : 0.95} luminanceThreshold={0.08} luminanceSmoothing={0.3} mipmapBlur />
         <ChromaticAberration offset={offset} radialModulation modulationOffset={0.4} />
         <Vignette eskil={false} offset={0.28} darkness={0.92} />
         <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.18} />

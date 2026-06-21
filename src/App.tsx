@@ -4,11 +4,16 @@ import { BootSequence } from './boot/BootSequence'
 import { NetworkScene } from './visualizer/NetworkScene'
 import { HudOverlay } from './hud/HudOverlay'
 import { CommsConsole } from './comms/CommsConsole'
+import { NetworkPanel } from './roster/NetworkPanel'
+import { useIdentity } from './identity/use-identity'
+import { useRoster } from './roster/use-roster'
 import { useSecureSession } from './session/use-secure-session'
 
 export function App(): React.ReactElement {
   const [booted, setBooted] = useState(false)
-  const session = useSecureSession()
+  const identity = useIdentity()
+  const roster = useRoster(identity.address || null)
+  const session = useSecureSession(identity.identity)
 
   return (
     <main className="relative h-full w-full overflow-hidden">
@@ -18,12 +23,13 @@ export function App(): React.ReactElement {
       </div>
 
       <HudOverlay
-        selfFingerprint={session.identity?.fingerprint ?? ''}
+        selfFingerprint={identity.identity?.fingerprint ?? ''}
         peerFingerprint={session.peerFingerprint}
         phase={session.phase}
       />
 
-      <div className="absolute inset-0 flex items-center justify-end px-[6vw]">
+      <div className="absolute inset-0 flex items-center justify-between gap-8 px-[5vw] py-24">
+        <NetworkPanel identity={identity} roster={roster} />
         <CommsConsole session={session} />
       </div>
 
