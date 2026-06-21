@@ -9,10 +9,19 @@ export function RecoveryPanel({ identity }: { identity: IdentityState }): React.
   const [mode, setMode] = useState<Mode>('closed')
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const doImport = (): void => {
     const res = identity.importMnemonic(draft)
     if (!res.ok) setError(res.error ?? 'FAILED')
+  }
+
+  const copyPhrase = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(identity.mnemonic)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch (err) { console.error('[recovery] copy failed', err) }
   }
 
   return (
@@ -42,6 +51,11 @@ export function RecoveryPanel({ identity }: { identity: IdentityState }): React.
                 </span>
               ))}
             </div>
+            <button
+              onClick={() => void copyPhrase()}
+              className="self-start text-[9px] tracking-[0.2em] transition-colors"
+              style={{ color: copied ? 'var(--accent)' : 'var(--text-lo)' }}
+            >{copied ? '✓ COPIED' : 'COPY PHRASE'}</button>
             <span className="text-[8px] leading-relaxed" style={{ color: 'var(--warn)' }}>
               ⚠ These 12 words ARE your account. Write them down offline. Anyone with them owns your identity.
             </span>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { loadJSON, saveJSON } from '../shared/local-store'
 import { callsign, encodeAddress, handle } from './address'
-import { identityFromMnemonic, isValidMnemonic, newMnemonic } from './seed'
+import { identityFromMnemonic, isValidMnemonic } from './seed'
 import type { Identity } from '../shared/types'
 
 interface Loaded {
@@ -9,18 +9,18 @@ interface Loaded {
   mnemonic: string
 }
 
-/** Charge l'identité depuis la phrase stockée, ou en crée une nouvelle. */
-async function loadOrCreate(): Promise<Loaded> {
-  let mnemonic = loadJSON<string>('seed-phrase', '')
-  if (!mnemonic || !isValidMnemonic(mnemonic)) {
-    mnemonic = newMnemonic()
-    saveJSON('seed-phrase', mnemonic)
-  }
+export type AuthStatus = 'loading' | 'anon' | 'ready'
+
+/** Charge l'identité depuis la phrase stockée. Aucune création implicite (login/register requis). */
+async function loadExisting(): Promise<Loaded | null> {
+  const mnemonic = loadJSON<string>('seed-phrase', '')
+  if (!mnemonic || !isValidMnemonic(mnemonic)) return null
   const identity = await identityFromMnemonic(mnemonic)
   return { identity, mnemonic }
 }
 
 export interface IdentityState {
+  status: AuthStatus
   identity: Identity | null
   address: string
   callsign: string
@@ -29,18 +29,23 @@ export interface IdentityState {
   mnemonic: string
   setPseudo: (next: string) => void
   importMnemonic: (words: string) => { ok: boolean; error?: string }
+  register: (words: string, name: string) => { ok: boolean; error?: string }
 }
 
 /** Identité persistante et portable — dérivée d'une phrase de récupération (BIP39). */
 export function useIdentity(): IdentityState {
+  const [status, setStatus] = useState<AuthStatus>('loading')
   const [identity, setIdentity] = useState<Identity | null>(null)
   const [mnemonic, setMnemonic] = useState('')
   const [pseudo, setPseudoState] = useState<string>(() => loadJSON<string>('pseudo', ''))
 
   useEffect(() => {
-    loadOrCreate()
-      .then(({ identity: id, mnemonic: m }) => { setIdentity(id); setMnemonic(m) })
-      .catch((err) => console.error('[identity] load failed', err))
+    loadExisting()
+      .then((res) => {
+        if (res) { setIdentity(res.identity); setMnemonic(res.mnemonic); setStatus('ready') }
+        else setStatus('anon')
+      })
+      .catch((err) => { console.error('[identity] load failed', err); setStatus('anon') })
   }, [])
 
   const setPseudo = (next: string): void => {
@@ -57,8 +62,18 @@ export function useIdentity(): IdentityState {
     return { ok: true }
   }
 
+  const register = (words: string, name: string): { ok: boolean; error?: string } => {
+    const clean = words.trim().toLowerCase()
+    if (!isValidMnemonic(clean)) return { ok: false, error: 'INVALID PHRASE' }
+    saveJSON('seed-phrase', clean)
+    saveJSON('pseudo', name.trim())
+    window.location.reload()
+    return { ok: true }
+  }
+
   const effectivePseudo = pseudo || (identity ? callsign(identity.publicKey) : '')
   return {
+    status,
     identity,
     address: identity ? encodeAddress(identity.publicKey) : '',
     callsign: identity ? callsign(identity.publicKey) : '',
@@ -67,5 +82,6 @@ export function useIdentity(): IdentityState {
     mnemonic,
     setPseudo,
     importMnemonic,
+    register,
   }
 }

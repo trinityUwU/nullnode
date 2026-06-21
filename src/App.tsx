@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { BootSequence } from './boot/BootSequence'
+import { AuthGate } from './auth/AuthGate'
 import { NetworkScene } from './visualizer/NetworkScene'
 import { HudOverlay } from './hud/HudOverlay'
 import { CommsConsole } from './comms/CommsConsole'
@@ -39,6 +40,17 @@ export function App(): React.ReactElement {
   const incomingPeer =
     session.phase === 'secure' && session.peerAddress && session.peerAddress !== chatPeer
       ? session.peerAddress : null
+
+  // Tant que l'identité n'est pas chargée : scène en fond + porte d'entrée (login/register).
+  if (identity.status !== 'ready') {
+    return (
+      <main className="relative h-full w-full overflow-hidden">
+        <div className="grid-backdrop absolute inset-0 opacity-60" />
+        <div className="absolute inset-0"><NetworkScene phase="idle" /></div>
+        {identity.status === 'anon' && <AuthGate identity={identity} />}
+      </main>
+    )
+  }
 
   return (
     <main className="relative h-full w-full overflow-hidden">

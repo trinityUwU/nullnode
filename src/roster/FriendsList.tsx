@@ -1,4 +1,4 @@
-import { discriminator } from '../identity/address'
+import { callsign, discriminator } from '../identity/address'
 import sodium from 'libsodium-wrappers'
 import type { Friend, Presence } from './types'
 import type { RosterState } from './use-roster'
@@ -16,7 +16,10 @@ interface Props {
 }
 
 function friendHandle(f: Friend): string {
-  try { return `${f.pseudo}#${discriminator(sodium.from_base64(f.pub))}` } catch { return f.pseudo }
+  try {
+    const pub = sodium.from_base64(f.pub)
+    return `${f.pseudo || callsign(pub)}#${discriminator(pub)}`
+  } catch { return f.pseudo || f.callsign || f.alias || f.address.slice(0, 14) }
 }
 
 /** Roster list — each friend with presence and a chat action. */

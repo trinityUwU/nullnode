@@ -7,7 +7,7 @@ export function resolvePeerHandle(address: string, friends: Friend[]): string {
     const pub = decodeAddress(address)
     const disc = discriminator(pub)
     const friend = friends.find((f) => f.address === address)
-    const pseudo = friend ? friend.pseudo : callsign(pub)
+    const pseudo = friend?.pseudo || callsign(pub)
     return `${pseudo}#${disc}`
   } catch {
     return address.slice(0, 14)

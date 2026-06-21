@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import sodium from 'libsodium-wrappers'
 import { decodeAddress, callsign } from '../identity/address'
-import { deriveFingerprint } from '../crypto/identity'
+import { deriveFingerprint, ensureReady } from '../crypto/identity'
 import { loadJSON, saveJSON } from '../shared/local-store'
 import type { Friend, Presence } from './types'
+
+/** Répare une entrée au schéma incomplet (pseudo/callsign/alias manquants) depuis sa clé. */
+function healFriend(f: Friend): Friend {
+  try {
+    const cs = f.callsign || callsign(sodium.from_base64(f.pub))
+    return { ...f, callsign: cs, pseudo: f.pseudo || cs, alias: f.alias || cs }
+  } catch {
+    const fallback = f.pseudo || f.callsign || f.alias || f.address.slice(0, 12)
+    return { ...f, callsign: fallback, pseudo: fallback, alias: fallback }
+  }
+}
 
 function buildFriend(address: string, pseudo: string): Friend {
   const pub = decodeAddress(address)
@@ -36,6 +47,16 @@ export function useRoster(selfId: string | null): RosterState {
   const [friends, setFriends] = useState<Friend[]>(() => loadJSON<Friend[]>('roster', []))
 
   useEffect(() => { saveJSON('roster', friends) }, [friends])
+
+  // Auto-réparation : comble les pseudos manquants (entrées issues d'un schéma partiel).
+  useEffect(() => {
+    ensureReady().then(() => {
+      setFriends((prev) => {
+        const needsHeal = prev.some((f) => !f.pseudo || !f.callsign)
+        return needsHeal ? prev.map(healFriend) : prev
+      })
+    }).catch((err) => console.error('[roster] heal failed', err))
+  }, [])
 
   const addFriend = useCallback((address: string, pseudo: string): { ok: boolean; error?: string } => {
     try {
